@@ -23,7 +23,6 @@ app.get('/version', (req, res) => {
 async function initDb() {
   const dbPath = '/tmp/comments.db';
   try {
-    // 本地跳过 Vercel Blob，Vercel 环境使用 Blob
     if (process.env.VERCEL) {
       const { blob } = await vercelBlobGet('comments.db', { access: 'public' });
       if (blob) {
