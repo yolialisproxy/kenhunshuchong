@@ -7,18 +7,19 @@ const sanitizeHtml = require('sanitize-html');
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
-// 调试请求
 app.use((req, res, next) => {
   console.log('Request:', req.method, req.url, req.body);
   next();
 });
 
-// 测试路由
 app.get('/test', (req, res) => {
   res.json({ status: 'ok', message: 'Custom Comment System is working' });
 });
 
-// 初始化数据库
+app.get('/version', (req, res) => {
+  res.json({ errno: 0, data: '1.0.0' });
+});
+
 async function initDb() {
   const dbPath = '/tmp/comments.db';
   try {
@@ -50,7 +51,6 @@ async function initDb() {
   return db;
 }
 
-// 同步数据库到 Blob
 async function syncDb() {
   const dbPath = '/tmp/comments.db';
   try {
@@ -64,7 +64,6 @@ async function syncDb() {
   }
 }
 
-// 验证域名
 function validateDomain(url) {
   const allowedDomains = process.env.SECURE_DOMAINS?.split(',') || ['myblog.example.com'];
   try {
@@ -75,7 +74,6 @@ function validateDomain(url) {
   }
 }
 
-// 初始化
 let db;
 async function startServer() {
   db = await initDb();
@@ -87,7 +85,6 @@ startServer().catch(err => {
   app.use((req, res) => res.status(500).json({ error: 'Server startup failed', details: err.message }));
 });
 
-// 提交评论
 app.post('/comment', async (req, res) => {
   const { nick, email, comment, path, url, parent_id } = req.body;
   if (!nick || !email || !comment || !path || !url) {
@@ -114,7 +111,6 @@ app.post('/comment', async (req, res) => {
   }
 });
 
-// 获取评论
 app.get('/comments', async (req, res) => {
   const { path } = req.query;
   if (!path) {
@@ -135,10 +131,8 @@ app.get('/comments', async (req, res) => {
   }
 });
 
-// 删除评论（管理权限）
 app.delete('/comment/:id', async (req, res) => {
   const { id } = req.params;
-  // TODO: 添加管理员验证（如 token）
   try {
     const stmt = db.prepare('DELETE FROM comments WHERE id = ? OR parent_id = ?');
     const result = stmt.run(id, id);
@@ -150,7 +144,6 @@ app.delete('/comment/:id', async (req, res) => {
   }
 });
 
-// 错误处理
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
   res.status(500).json({ error: 'Server Error', details: err.message });
