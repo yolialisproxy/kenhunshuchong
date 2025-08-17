@@ -1,6 +1,6 @@
 const express = require('express');
 const Database = require('better-sqlite3');
-const { put, get } = require('@vercel/blob');
+const { put, get: vercelBlobGet } = require('@vercel/blob');
 const fs = require('fs').promises;
 const sanitizeHtml = require('sanitize-html');
 
@@ -23,12 +23,18 @@ app.get('/version', (req, res) => {
 async function initDb() {
   const dbPath = '/tmp/comments.db';
   try {
-    const { blob } = await get('comments.db', { access: 'public' });
-    if (blob) {
-      await fs.writeFile(dbPath, Buffer.from(await blob.arrayBuffer()));
-      console.log('Restored DB from Vercel Blob');
+    // 本地跳过 Vercel Blob，Vercel 环境使用 Blob
+    if (process.env.VERCEL) {
+      const { blob } = await vercelBlobGet('comments.db', { access: 'public' });
+      if (blob) {
+        await fs.writeFile(dbPath, Buffer.from(await blob.arrayBuffer()));
+        console.log('Restored DB from Vercel Blob');
+      } else {
+        console.log('No existing DB, creating new one');
+        await fs.writeFile(dbPath, Buffer.alloc(0));
+      }
     } else {
-      console.log('No existing DB, creating new one');
+      console.log('Local env, using empty DB');
       await fs.writeFile(dbPath, Buffer.alloc(0));
     }
   } catch (e) {
@@ -48,13 +54,14 @@ async function initDb() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  console.log('Database initialized successfully');
   return db;
 }
 
 async function syncDb() {
   const dbPath = '/tmp/comments.db';
   try {
-    if (await fs.access(dbPath).then(() => true).catch(() => false)) {
+    if (process.env.VERCEL && await fs.access(dbPath).then(() => true).catch(() => false)) {
       const data = await fs.readFile(dbPath);
       await put('comments.db', data, { access: 'public' });
       console.log('Synced DB to Vercel Blob');
@@ -77,7 +84,6 @@ function validateDomain(url) {
 let db;
 async function startServer() {
   db = await initDb();
-  console.log('Database initialized successfully');
 }
 
 startServer().catch(err => {
@@ -147,6 +153,11 @@ app.delete('/comment/:id', async (req, res) => {
 app.use((err, req, res, next) => {
   console.error('Error:', err.stack);
   res.status(500).json({ error: 'Server Error', details: err.message });
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
 
 module.exports = app;
