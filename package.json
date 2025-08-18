@@ -13,7 +13,4 @@
   "scripts": {
     "start": "node api/comments.js"
   },
-  "engines": {
-  "node": "18.x"
-}
 }
