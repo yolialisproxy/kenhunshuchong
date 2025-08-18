@@ -1,4 +1,4 @@
-const API_BASE = "https://kenhunshuchong3.vercel.app/api"; // 替换成你的域名
+const API_BASE = "https://kenhunshuchong.vercel.app/api"; // 替换成你的域名
 
 const postDiv = document.getElementById("comments");
 const postId = postDiv.dataset.postId;
