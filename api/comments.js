@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, push, get, child, remove, update } from "firebase/database";
+import { getDatabase, ref, set, push } from "firebase/database";
 
-// 初始化 Firebase
+// Firebase 配置
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -12,20 +12,29 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID
 };
 
+// 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// 提交评论
+// 提交评论的 API
 export async function submitComment(req, res) {
   try {
+    // 输出请求日志，帮助我们调试
+    console.log("Received request body:", req.body);
+
     const { postId, name, email, comment } = req.body;
+
+    // 校验请求数据
     if (!postId || !name || !email || !comment) {
+      console.error("Missing required fields");
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // 获取数据库引用
     const commentRef = ref(database, 'comments/' + postId);
     const newCommentRef = push(commentRef);
 
+    // 设置评论数据
     await set(newCommentRef, {
       name,
       email,
@@ -33,85 +42,12 @@ export async function submitComment(req, res) {
       date: Date.now(),
     });
 
+    console.log("Comment successfully submitted");
     res.status(200).json({ message: 'Comment submitted successfully' });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to submit comment' });
-  }
-}
-
-// 获取评论（分页）
-export async function getComments(req, res) {
-  try {
-    const { postId, page = 1, limit = 5 } = req.query;
-    if (!postId) {
-      return res.status(400).json({ error: 'postId is required' });
-    }
-
-    const commentRef = ref(database, 'comments/' + postId);
-    const snapshot = await get(commentRef);
-
-    if (!snapshot.exists()) {
-      return res.status(404).json({ error: 'No comments found' });
-    }
-
-    const comments = [];
-    snapshot.forEach(childSnapshot => {
-      comments.push({
-        id: childSnapshot.key,
-        ...childSnapshot.val()
-      });
-    });
-
-    // 排序：按日期倒序
-    comments.sort((a, b) => b.date - a.date);
-
-    const startIndex = (page - 1) * limit;
-    const paginatedComments = comments.slice(startIndex, startIndex + limit);
-
-    res.status(200).json({
-      comments: paginatedComments,
-      totalPages: Math.ceil(comments.length / limit),
-      currentPage: page
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch comments' });
-  }
-}
-
-// 删除评论
-export async function deleteComment(req, res) {
-  try {
-    const { postId, commentId } = req.query;
-    if (!postId || !commentId) {
-      return res.status(400).json({ error: 'postId and commentId are required' });
-    }
-
-    const commentRef = ref(database, 'comments/' + postId + '/' + commentId);
-    await remove(commentRef);
-
-    res.status(200).json({ message: 'Comment deleted successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to delete comment' });
-  }
-}
-
-// 编辑评论
-export async function editComment(req, res) {
-  try {
-    const { postId, commentId, comment } = req.body;
-    if (!postId || !commentId || !comment) {
-      return res.status(400).json({ error: 'postId, commentId, and comment are required' });
-    }
-
-    const commentRef = ref(database, 'comments/' + postId + '/' + commentId);
-    await update(commentRef, { comment });
-
-    res.status(200).json({ message: 'Comment updated successfully' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to update comment' });
+    // 错误处理
+    console.error("Error while submitting comment:", error);
+    res.status(500).json({ error: 'Failed to submit comment', details: error.message });
   }
 }
