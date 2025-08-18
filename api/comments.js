@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, push, query, orderByChild, limitToFirst, get, startAfter } from 'firebase/database';
+import { getDatabase, ref, set, push, child } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -17,15 +17,16 @@ const db = getDatabase(app);
 
 export default async function handler(req, res) {
   // 设置 CORS 头
+  // res.setHeader('Access-Control-Allow-Origin', 'https://kenhunshuchong.web.app'); // 或 '*'
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
+    // 预检请求，直接返回
     res.status(200).end();
     return;
   }
-
   if (req.method === 'POST') {
     const { postId, name, email, comment } = req.body;
 
@@ -37,28 +38,19 @@ export default async function handler(req, res) {
     }
 
     try {
+      // Create a reference to the comments path
       const commentsRef = ref(db, 'comments/' + postId);
+
+      // Push new comment data into the database
       const newCommentRef = push(commentsRef);
       await set(newCommentRef, {
         name,
         email,
         comment,
         date: Date.now(),
-        likes: 0,
       });
 
-      return res.status(200).json({
-        message: 'Comment submitted successfully',
-        commentId: newCommentRef.key,
-        comment: {
-          id: newCommentRef.key,
-          name,
-          email,
-          comment,
-          date: Date.now(),
-          likes: 0,
-        }
-      });
+      return res.status(200).json({ message: 'Comment submitted successfully' });
     } catch (error) {
       console.error(error);
       return res.status(500).json({
@@ -67,41 +59,29 @@ export default async function handler(req, res) {
       });
     }
   } else if (req.method === 'GET') {
-    const { postId, page = 1 } = req.query;
-    const pageSize = 10; // 每页显示的评论数
+    const { postId } = req.query;
 
+    // Check if postId is provided
     if (!postId) {
       return res.status(400).json({ error: 'Missing postId parameter' });
     }
 
     try {
+      // Get comments from Firebase
       const commentsRef = ref(db, 'comments/' + postId);
-      
-      // 查询条件：按时间排序，限制每页评论数
-      const commentsQuery = query(
-        commentsRef,
-        orderByChild('date'),
-        limitToFirst(pageSize),
-        startAfter((page - 1) * pageSize)
-      );
-
-      const snapshot = await get(commentsQuery);
+      const snapshot = await get(commentsRef);
 
       if (!snapshot.exists()) {
         return res.status(404).json({ error: 'No comments found' });
       }
 
       const comments = snapshot.val();
-      const commentsList = Object.keys(comments).map(key => ({
+      const commentsList = Object.keys(comments).map((key) => ({
         id: key,
         ...comments[key],
       }));
 
-      // 计算总页数
-      const totalComments = Object.keys(comments).length;
-      const totalPages = Math.ceil(totalComments / pageSize);
-
-      return res.status(200).json({ comments: commentsList, totalPages });
+      return res.status(200).json({ comments: commentsList });
     } catch (error) {
       console.error(error);
       return res.status(500).json({
