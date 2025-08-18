@@ -13,14 +13,21 @@ const firebaseConfig = {
 };
 
 // 初始化 Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log("Firebase initialized successfully.");
+} catch (error) {
+  console.error("Firebase initialization failed:", error.message);
+}
+
+const db = app ? getDatabase(app) : null;
 
 // 处理 GET 和 POST 请求
 export default async (req, res) => {
   if (req.method === "GET") {
     try {
-      // 输出环境变量到网页
+      // 输出环境变量和Firebase配置到响应
       const envVars = {
         FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
         FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
@@ -42,11 +49,10 @@ export default async (req, res) => {
       res.status(200).json({ ...comments, envVars });
     } catch (error) {
       console.error("Error during GET:", error);
-      res.status(500).json({ error: "读取数据失败" });
+      res.status(500).json({ error: "读取数据失败", details: error.message });
     }
   } else if (req.method === "POST") {
     try {
-      // 获取请求体数据
       const { postId, name, email, comment } = req.body;
 
       // 打印收到的请求数据，用于调试
@@ -56,6 +62,11 @@ export default async (req, res) => {
       if (!postId || !name || !comment) {
         console.error("缺少必填字段");
         return res.status(400).json({ error: "缺少必填字段" });
+      }
+
+      if (!db) {
+        console.error("数据库连接失败");
+        return res.status(500).json({ error: "数据库连接失败" });
       }
 
       // 向 Firebase 写入评论数据
@@ -71,7 +82,7 @@ export default async (req, res) => {
       res.status(201).json({ message: "评论已提交" });
     } catch (error) {
       console.error("Error during POST:", error);  // 打印错误信息
-      res.status(500).json({ error: "服务器错误" });
+      res.status(500).json({ error: "服务器错误", details: error.message });
     }
   } else {
     res.status(405).json({ error: "不支持的请求方法" });
