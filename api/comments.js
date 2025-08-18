@@ -12,6 +12,12 @@ const {
   FIREBASE_APP_ID
 } = process.env;
 
+console.log("ENV VARS", {
+  FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
+  FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL,
+  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID
+});
+
 // 初始化 Firebase
 if (!getApps().length) {
   initializeApp({
