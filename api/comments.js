@@ -66,9 +66,36 @@ export default async function handler(req, res) {
         details: error.message,
       });
     }
-  } else if (req.method === 'GET') {
-    const { postId, page = 1 } = req.query;
-    const pageSize = 10; // 每页显示的评论数
+  } 
+
+  if (req.method === "GET") {
+    try {
+      const { postId } = req.query;
+      if (!postId) {
+        return res.status(400).json({ error: "缺少 postId 参数" });
+      }
+
+      const q = query(
+        collection(db, "comments"),
+        where("postId", "==", postId),
+        orderBy("createdAt", "desc")
+      );
+
+      const snapshot = await getDocs(q);
+      const comments = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return res.status(200).json(comments);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: "加载评论失败" });
+    }
+  }
+
+  res.setHeader("Allow", ["POST", "GET"]);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
 
     if (!postId) {
       return res.status(400).json({ error: 'Missing postId parameter' });
