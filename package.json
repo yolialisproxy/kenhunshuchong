@@ -1,11 +1,13 @@
 {
   "name": "custom-comment-system",
   "version": "1.0.0",
-  "main": "api/comments.js",
-  "type": "module",
-  "dependencies": {
-  },
+  "description": "Custom comment system for Hugo + Firebase",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node api/comments.js"
-  }
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.11.0"
+  },
+  "type": "commonjs"
 }
