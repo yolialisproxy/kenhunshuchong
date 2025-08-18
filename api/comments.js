@@ -1,81 +1,41 @@
 // api/comments.js
-import { initializeApp, getApps } from "firebase/app";
-import { getDatabase, ref, push, get, query, orderByChild, equalTo, limitToLast } from "firebase/database";
+import admin from "firebase-admin";
 
-const {
-  FIREBASE_API_KEY,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_DATABASE_URL,
-  FIREBASE_PROJECT_ID,
-  FIREBASE_STORAGE_BUCKET,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_APP_ID
-} = process.env;
-
-console.log("ENV VARS", {
-  FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
-  FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL,
-  FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID
-});
-
-// 初始化 Firebase
-if (!getApps().length) {
-  initializeApp({
-    apiKey: FIREBASE_API_KEY,
-    authDomain: FIREBASE_AUTH_DOMAIN,
-    databaseURL: FIREBASE_DATABASE_URL,
-    projectId: FIREBASE_PROJECT_ID,
-    storageBucket: FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
-    appId: FIREBASE_APP_ID
+// 仅初始化一次，Serverless 环境下多次调用不会重复初始化
+if (!admin.apps.length) {
+  admin.initializeApp({
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    databaseURL: process.env.FIREBASE_DATABASE_URL,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID,
   });
 }
 
-const db = getDatabase();
+const db = admin.database();
 
 export default async function handler(req, res) {
   try {
-    if (req.method === "POST") {
-      const { name, email, comment, postId, parentId = null } = req.body;
-      if (!name || !email || !comment || !postId) {
-        return res.status(400).json({ error: "缺少必要字段" });
-      }
-      const newCommentRef = push(ref(db, `comments/${postId}`));
-      await newCommentRef.set({
-        name,
-        email,
-        comment,
-        parentId,
-        date: Date.now(),
-        likes: 0
-      });
-      return res.status(200).json({ message: "评论提交成功" });
-    } else if (req.method === "GET") {
-      const { postId, page = 1, pageSize = 10 } = req.query;
-      if (!postId) return res.status(400).json({ error: "缺少 postId" });
+    if (req.method === "GET") {
+      // 从 Realtime Database 的 comments 节点读取所有评论
+      const snapshot = await db.ref("comments").once("value");
+      const data = snapshot.val() || {};
 
-      const postRef = ref(db, `comments/${postId}`);
-      const snap = await get(postRef);
-      const data = snap.val() || {};
+      // 转成数组，便于前端处理
+      const comments = Object.entries(data).map(([id, comment]) => ({
+        id,
+        ...comment,
+      }));
 
-      // 转换为数组并按时间排序
-      const comments = Object.entries(data).map(([id, c]) => ({ id, ...c }))
-        .sort((a, b) => b.date - a.date);
-
-      const start = (page - 1) * pageSize;
-      const paginated = comments.slice(start, start + pageSize);
-
-      return res.status(200).json({
-        comments: paginated,
-        total: comments.length,
-        page: Number(page),
-        totalPages: Math.ceil(comments.length / pageSize)
-      });
-    } else {
-      return res.status(405).json({ error: "仅支持 GET 和 POST" });
+      return res.status(200).json({ comments });
     }
+
+    // 如果不是 GET
+    return res.status(405).json({ error: "Method Not Allowed" });
   } catch (err) {
-    console.error("API ERROR:", err);
-    return res.status(500).json({ error: "服务器错误" });
+    console.error("Firebase read error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 }
