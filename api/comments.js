@@ -1,32 +1,17 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, push, child } from 'firebase/database';
+import { getDatabase, ref, get, query, orderByChild, limitToFirst, startAfter } from 'firebase/database';
 
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
+// 修改 GET 请求部分，增加分页支持
 export default async function handler(req, res) {
   // 设置 CORS 头
-  // res.setHeader('Access-Control-Allow-Origin', 'https://kenhunshuchong.web.app'); // 或 '*'
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    // 预检请求，直接返回
     res.status(200).end();
     return;
   }
+
   if (req.method === 'POST') {
     const { postId, name, email, comment } = req.body;
 
@@ -38,10 +23,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      // Create a reference to the comments path
       const commentsRef = ref(db, 'comments/' + postId);
-
-      // Push new comment data into the database
       const newCommentRef = push(commentsRef);
       await set(newCommentRef, {
         name,
@@ -50,7 +32,7 @@ export default async function handler(req, res) {
         date: Date.now(),
       });
 
-      return res.status(200).json({ message: 'Comment submitted successfully' });
+      return res.status(200).json({ message: 'Comment submitted successfully', commentId: newCommentRef.key });
     } catch (error) {
       console.error(error);
       return res.status(500).json({
@@ -59,17 +41,25 @@ export default async function handler(req, res) {
       });
     }
   } else if (req.method === 'GET') {
-    const { postId } = req.query;
+    const { postId, page = 1 } = req.query;
+    const pageSize = 10; // 每页显示的评论数
 
-    // Check if postId is provided
     if (!postId) {
       return res.status(400).json({ error: 'Missing postId parameter' });
     }
 
     try {
-      // Get comments from Firebase
       const commentsRef = ref(db, 'comments/' + postId);
-      const snapshot = await get(commentsRef);
+      
+      // 查询条件：按时间排序，限制每页评论数
+      let commentsQuery = query(
+        commentsRef,
+        orderByChild('date'),
+        limitToFirst(pageSize),
+        startAfter(page > 1 ? (page - 1) * pageSize : 0) // 计算起始点，支持分页
+      );
+
+      const snapshot = await get(commentsQuery);
 
       if (!snapshot.exists()) {
         return res.status(404).json({ error: 'No comments found' });
@@ -81,7 +71,11 @@ export default async function handler(req, res) {
         ...comments[key],
       }));
 
-      return res.status(200).json({ comments: commentsList });
+      // 计算总页数
+      const totalComments = Object.keys(comments).length; // 评论总数
+      const totalPages = Math.ceil(totalComments / pageSize);
+
+      return res.status(200).json({ comments: commentsList, totalPages });
     } catch (error) {
       console.error(error);
       return res.status(500).json({
