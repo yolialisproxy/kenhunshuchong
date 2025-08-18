@@ -1,6 +1,6 @@
 // api/comments.js
 import { initializeApp, getApps } from "firebase/app";
-import { getDatabase, ref, push, set, get, update, child } from "firebase/database";
+import { getDatabase, ref, push, set, get, update } from "firebase/database";
 
 // ========== Firebase 配置 ==========
 const firebaseConfig = {
@@ -13,9 +13,7 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
-if (!getApps().length) {
-  initializeApp(firebaseConfig);
-}
+if (!getApps().length) initializeApp(firebaseConfig);
 const db = getDatabase();
 
 // ========================== 辅助函数 ==========================
@@ -47,6 +45,29 @@ export default async function handler(req, res) {
   }
 
   if (method === "POST") {
+    const { action } = req.query;
+
+    // ========== 点赞 ==========
+    if (action === "like") {
+      try {
+        const { postId, commentId } = req.body;
+        if (!postId || !commentId) return res.status(400).json({ error: "缺少 postId 或 commentId" });
+
+        const commentRef = ref(db, `comments/${postId}/${commentId}`);
+        const snapshot = await get(commentRef);
+        if (!snapshot.exists()) return res.status(404).json({ error: "评论不存在" });
+
+        const commentData = snapshot.val();
+        const likes = (commentData.likes || 0) + 1;
+        await update(commentRef, { likes });
+        res.status(200).json({ likes });
+      } catch {
+        res.status(500).json({ error: "点赞失败" });
+      }
+      return;
+    }
+
+    // ========== 新增评论 ==========
     try {
       const { postId, name, email, comment, parentId } = req.body;
       if (!postId || !name || !email || !comment) {
@@ -69,28 +90,6 @@ export default async function handler(req, res) {
       res.status(200).json(newComment);
     } catch (err) {
       res.status(500).json({ error: "提交评论失败" });
-    }
-    return;
-  }
-
-  // 点赞
-  if (method === "POST" && req.url.match(/\/api\/comments\/(.+)\/like/)) {
-    try {
-      const match = req.url.match(/\/api\/comments\/(.+)\/like/);
-      const commentId = match[1];
-      const postId = req.query.postId;
-      if (!postId || !commentId) return res.status(400).json({ error: "缺少 postId 或 commentId" });
-
-      const commentRef = ref(db, `comments/${postId}/${commentId}`);
-      const snapshot = await get(commentRef);
-      if (!snapshot.exists()) return res.status(404).json({ error: "评论不存在" });
-
-      const commentData = snapshot.val();
-      const likes = (commentData.likes || 0) + 1;
-      await update(commentRef, { likes });
-      res.status(200).json({ likes });
-    } catch {
-      res.status(500).json({ error: "点赞失败" });
     }
     return;
   }
