@@ -16,6 +16,16 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
+  // 设置 CORS 头
+  res.setHeader('Access-Control-Allow-Origin', 'https://kenhunshuchong.web.app'); // 或 '*'
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    // 预检请求，直接返回
+    res.status(200).end();
+    return;
+  }
   if (req.method === 'POST') {
     const { postId, name, email, comment } = req.body;
 
