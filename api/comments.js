@@ -1,8 +1,5 @@
-// api/comments.js
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  getDatabase, ref, set, push, get, query, orderByChild, limitToLast
-} from 'firebase/database';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, set, get, query, orderByChild } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -14,12 +11,10 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
-// 初始化（避免重复初始化报错）
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -28,63 +23,57 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 提交评论
   if (req.method === 'POST') {
-    const { postId, name, email, comment } = req.body || {};
-
+    const { postId, name, email, comment } = req.body;
     if (!postId || !name || !email || !comment) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: '缺少必填字段' });
     }
 
     try {
-      const commentsRef = ref(db, `comments/${postId}`);
-      const newRef = push(commentsRef);
+      const commentsRef = ref(db, 'comments/' + postId);
+      const newCommentRef = push(commentsRef);
       const now = Date.now();
-      const payload = { name, email, comment, date: now, likes: 0 };
 
-      await set(newRef, payload);
+      await set(newCommentRef, {
+        name,
+        email,
+        comment,
+        date: now,
+        likes: 0,
+      });
 
       return res.status(200).json({
         message: 'Comment submitted successfully',
-        id: newRef.key,
-        ...payload,
+        comment: { id: newCommentRef.key, name, email, comment, date: now, likes: 0 }
       });
-    } catch (e) {
-      console.error(e);
-      return res.status(500).json({ error: 'Unable to submit comment', details: e.message });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: '无法提交评论', details: err.message });
     }
   }
 
-  // 获取评论（取最新 20 条，按时间倒序返回）
   if (req.method === 'GET') {
+    const { postId } = req.query;
+    if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
+
     try {
-      const { postId } = req.query || {};
-      if (!postId) {
-        return res.status(400).json({ error: 'Missing postId parameter' });
-      }
+      const commentsRef = ref(db, 'comments/' + postId);
+      const snapshot = await get(commentsRef);
 
-      const commentsRef = ref(db, `comments/${postId}`);
-      const q = query(commentsRef, orderByChild('date'), limitToLast(20));
-      const snap = await get(q);
+      const commentsList = snapshot.exists()
+        ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] }))
+        : [];
 
-      // 不报 404，返回空数组，方便前端处理
-      if (!snap.exists()) {
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).json([]);
-      }
+      // 按 date 降序排列
+      commentsList.sort((a, b) => b.date - a.date);
 
-      const data = snap.val();
-      const list = Object.keys(data).map(id => ({ id, ...data[id] }));
-      // 倒序（新->旧）
-      list.sort((a, b) => b.date - a.date);
-
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(200).json(list);
-    } catch (e) {
-      console.error(e);
-      return res.status(500).json({ error: 'Unable to fetch comments', details: e.message });
+      return res.status(200).json(commentsList);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: '无法获取评论', details: err.message });
     }
   }
 
-  return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
+  return res.status(405).end(`Method ${req.method} Not Allowed`);
 }
