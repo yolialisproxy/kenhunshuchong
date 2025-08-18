@@ -1,72 +1,88 @@
 import admin from "firebase-admin";
+import Cors from "cors";
 
+// 初始化 CORS
+const cors = Cors({ origin: true });
+
+// 初始化 Firebase
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       type: process.env.FIREBASE_TYPE,
       project_id: process.env.FIREBASE_PROJECT_ID,
       private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"), // 替换换行符
+      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       client_email: process.env.FIREBASE_CLIENT_EMAIL,
       client_id: process.env.FIREBASE_CLIENT_ID,
       auth_uri: process.env.FIREBASE_AUTH_URI,
       token_uri: process.env.FIREBASE_TOKEN_URI,
       auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
-      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
+      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
     }),
     databaseURL: process.env.FIREBASE_DATABASE_URL
   });
 }
 
-// 初始化 Firebase
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DATABASE_URL, // 如果你用 Realtime DB
+const db = admin.firestore();
+
+// 帮助函数：等待 CORS 完成
+function runMiddleware(req, res, fn) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result) => {
+      if (result instanceof Error) reject(result);
+      else resolve(result);
+    });
   });
 }
 
-const db = admin.firestore();
-export default db;
-// const db = admin.database(); // 如果你用 Realtime Database
-
+// API 处理
 export default async function handler(req, res) {
+  await runMiddleware(req, res, cors);
+
   if (req.method === "POST") {
     try {
-      const { name, email, comment, slug, redirect } = req.body.fields;
+      const { name, email, comment, slug } = req.body.fields || {};
 
       if (!name || !email || !comment || !slug) {
-        return res.status(400).json({ error: "Missing required fields" });
+        return res.status(400).json({ error: "缺少必填字段" });
       }
 
-      // 写入 Firestore
-      const docRef = await db.collection("comments").doc(slug).collection("comments").add({
+      const newComment = {
         name,
         email,
         comment,
+        slug,
         date: new Date().toISOString(),
-      });
+        approved: false
+      };
 
-      // 返回成功信息
-      return res.status(200).json({ message: "Comment submitted successfully", id: docRef.id });
+      await db.collection("comments").add(newComment);
+
+      return res.status(200).json({ message: "评论已提交，待审核" });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: "Failed to submit comment" });
+      return res.status(500).json({ error: "服务器错误" });
     }
   } else if (req.method === "GET") {
     try {
-      const { slug } = req.query;
-      if (!slug) return res.status(400).json({ error: "Missing slug" });
+      const slug = req.query.slug;
+      if (!slug) return res.status(400).json({ error: "缺少 slug 参数" });
 
-      const snapshot = await db.collection("comments").doc(slug).collection("comments").orderBy("date", "desc").get();
-      const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snapshot = await db
+        .collection("comments")
+        .where("slug", "==", slug)
+        .where("approved", "==", true)
+        .orderBy("date", "desc")
+        .get();
 
-      return res.status(200).json(comments);
+      const comments = snapshot.docs.map((doc) => doc.data());
+      return res.status(200).json({ comments });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: "Failed to fetch comments" });
+      return res.status(500).json({ error: "服务器错误" });
     }
   } else {
-    return res.status(405).json({ error: "Method not allowed" });
+    res.setHeader("Allow", ["POST", "GET"]);
+    return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 }
