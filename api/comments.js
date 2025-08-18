@@ -21,6 +21,49 @@ if (!admin.apps.length) {
 
 const db = admin.database();
 
+export default async (req, res) => {
+  if (req.method === "GET") {
+    try {
+      // 模拟返回评论
+      const comments = {
+        comments: [
+          { id: 1, name: "测试用户", comment: "Hello World", date: Date.now() }
+        ]
+      };
+      res.status(200).json(comments);
+    } catch (error) {
+      console.error("Error during GET:", error);
+      res.status(500).json({ error: "读取数据失败" });
+    }
+  } else if (req.method === "POST") {
+    try {
+      // 读取请求体内容
+      const { postId, name, email, comment } = req.body;
+
+      // 检查必填项是否存在
+      if (!postId || !name || !comment) {
+        return res.status(400).json({ error: "缺少必填字段" });
+      }
+
+      // 模拟存储评论
+      const newComment = {
+        id: Date.now(),
+        name,
+        comment,
+        date: Date.now()
+      };
+
+      console.log("新评论已提交:", newComment); // 打印评论内容
+
+      // 返回响应
+      res.status(201).json({ message: "评论已提交", comment: newComment });
+    } catch (error) {
+      console.error("Error during POST:", error); // 打印错误信息
+      res.status(500).json({ error: "服务器错误" });
+    }
+  }
+};
+
 export default async function handler(req, res) {
   const method = req.method;
 
