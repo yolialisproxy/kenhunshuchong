@@ -1,12 +1,15 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/*.js", "use": "@vercel/node" }
+    {
+      "src": "api/comments.js",
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1.js" }
-  ],
-  "env": {
-    "FIREBASE_SERVICE_ACCOUNT": "@firebase_service_account"
-  }
+    {
+      "src": "/api/comments",
+      "dest": "/api/comments.js"
+    }
+  ]
 }

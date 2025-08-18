@@ -2,10 +2,9 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import admin from "firebase-admin";
-import fs from "fs";
 
-// 从本地文件读取 serviceAccount.json
-const serviceAccount = JSON.parse(fs.readFileSync('./serviceAccount.json', 'utf8'));
+// 从环境变量读取 service account JSON
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
 
 if (!admin.apps.length) {
   admin.initializeApp({
