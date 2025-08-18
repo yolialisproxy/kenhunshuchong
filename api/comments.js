@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, set, push } from "firebase/database";
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, set } from 'firebase/database';
 
 // Firebase 配置
 const firebaseConfig = {
@@ -16,38 +16,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-// 提交评论的 API
-export async function submitComment(req, res) {
-  try {
-    // 输出请求日志，帮助我们调试
-    console.log("Received request body:", req.body);
+// 处理 POST 请求
+export default async function handler(req, res) {
+  if (req.method === 'POST') {
+    try {
+      const { postId, name, email, comment } = req.body;
 
-    const { postId, name, email, comment } = req.body;
+      // 校验请求数据
+      if (!postId || !name || !email || !comment) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
 
-    // 校验请求数据
-    if (!postId || !name || !email || !comment) {
-      console.error("Missing required fields");
-      return res.status(400).json({ error: 'Missing required fields' });
+      // 数据库引用
+      const commentRef = ref(database, 'comments/' + postId);
+      const newCommentRef = push(commentRef);
+
+      // 设置评论数据
+      await set(newCommentRef, {
+        name,
+        email,
+        comment,
+        date: Date.now(),
+      });
+
+      res.status(200).json({ message: 'Comment submitted successfully' });
+
+    } catch (error) {
+      console.error("Error while submitting comment:", error);
+      res.status(500).json({ error: 'Failed to submit comment', details: error.message });
     }
-
-    // 获取数据库引用
-    const commentRef = ref(database, 'comments/' + postId);
-    const newCommentRef = push(commentRef);
-
-    // 设置评论数据
-    await set(newCommentRef, {
-      name,
-      email,
-      comment,
-      date: Date.now(),
-    });
-
-    console.log("Comment successfully submitted");
-    res.status(200).json({ message: 'Comment submitted successfully' });
-
-  } catch (error) {
-    // 错误处理
-    console.error("Error while submitting comment:", error);
-    res.status(500).json({ error: 'Failed to submit comment', details: error.message });
+  } else {
+    res.status(405).json({ error: 'Method Not Allowed' });
   }
 }
