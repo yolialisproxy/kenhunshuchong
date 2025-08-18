@@ -1,44 +1,67 @@
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import admin from "firebase-admin";
+// api/comments.js
+import { initializeApp, cert, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
 
-// 从环境变量读取 service account JSON
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+// ====== 初始化 Firebase ======
+if (!getApps().length) {
+  const serviceAccount = {
+    type: "service_account",
+    project_id: process.env.FIREBASE_PROJECT_ID,
+    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+    client_email: process.env.FIREBASE_CLIENT_EMAIL,
+    client_id: process.env.FIREBASE_CLIENT_ID,
+    auth_uri: process.env.FIREBASE_AUTH_URI || "https://accounts.google.com/o/oauth2/auth",
+    token_uri: process.env.FIREBASE_TOKEN_URI || "https://oauth2.googleapis.com/token",
+    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
+    client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
+  };
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+  initializeApp({
+    credential: cert(serviceAccount)
   });
 }
 
-const db = admin.firestore();
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+const db = getFirestore();
 
-// 获取评论
-app.get("/api/comments", async (req, res) => {
-  try {
-    const snapshot = await db.collection("comments").get();
-    const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.json(comments);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Firebase read failed" });
+// ====== API Handler ======
+export default async function handler(req, res) {
+  const collectionName = "comments";
+
+  if (req.method === "POST") {
+    const { name, email, comment, slug } = req.body.fields || {};
+    if (!name || !email || !comment || !slug) {
+      return res.status(400).json({ error: "Missing fields" });
+    }
+
+    try {
+      await db.collection(collectionName).doc(slug).collection("items").add({
+        name,
+        email,
+        comment,
+        date: new Date().toISOString()
+      });
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to save comment" });
+    }
   }
-});
 
-// 提交评论
-app.post("/api/comments", async (req, res) => {
-  try {
-    const data = req.body;
-    const docRef = await db.collection("comments").add(data);
-    res.json({ id: docRef.id, ...data });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Firebase write failed" });
+  if (req.method === "GET") {
+    const slug = req.query.slug;
+    if (!slug) return res.status(400).json({ error: "Missing slug" });
+
+    try {
+      const snapshot = await db.collection(collectionName).doc(slug).collection("items").orderBy("date", "desc").get();
+      const comments = snapshot.docs.map(doc => doc.data());
+      return res.status(200).json(comments);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Failed to fetch comments" });
+    }
   }
-});
 
-export default app;
+  res.setHeader("Allow", ["GET", "POST"]);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
+}
