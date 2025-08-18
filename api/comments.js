@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set } from 'firebase/database';
+import { getDatabase, ref, set, push, child } from 'firebase/database';
 
-// Firebase 配置
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -9,29 +8,30 @@ const firebaseConfig = {
   projectId: process.env.FIREBASE_PROJECT_ID,
   storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
+  appId: process.env.FIREBASE_APP_ID,
 };
 
-// 初始化 Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const db = getDatabase(app);
 
-// 处理 POST 请求
 export default async function handler(req, res) {
   if (req.method === 'POST') {
+    const { postId, name, email, comment } = req.body;
+
+    // Check required fields
+    if (!postId || !name || !email || !comment) {
+      return res.status(400).json({
+        error: 'Missing required fields: postId, name, email, or comment',
+      });
+    }
+
     try {
-      const { postId, name, email, comment } = req.body;
+      // Create a reference to the comments path
+      const commentsRef = ref(db, 'comments/' + postId);
 
-      // 校验请求数据
-      if (!postId || !name || !email || !comment) {
-        return res.status(400).json({ error: 'Missing required fields' });
-      }
-
-      // 数据库引用
-      const commentRef = ref(database, 'comments/' + postId);
-      const newCommentRef = push(commentRef);
-
-      // 设置评论数据
+      // Push new comment data into the database
+      const newCommentRef = push(commentsRef);
       await set(newCommentRef, {
         name,
         email,
@@ -39,13 +39,46 @@ export default async function handler(req, res) {
         date: Date.now(),
       });
 
-      res.status(200).json({ message: 'Comment submitted successfully' });
-
+      return res.status(200).json({ message: 'Comment submitted successfully' });
     } catch (error) {
-      console.error("Error while submitting comment:", error);
-      res.status(500).json({ error: 'Failed to submit comment', details: error.message });
+      console.error(error);
+      return res.status(500).json({
+        error: 'Unable to submit comment',
+        details: error.message,
+      });
+    }
+  } else if (req.method === 'GET') {
+    const { postId } = req.query;
+
+    // Check if postId is provided
+    if (!postId) {
+      return res.status(400).json({ error: 'Missing postId parameter' });
+    }
+
+    try {
+      // Get comments from Firebase
+      const commentsRef = ref(db, 'comments/' + postId);
+      const snapshot = await get(commentsRef);
+
+      if (!snapshot.exists()) {
+        return res.status(404).json({ error: 'No comments found' });
+      }
+
+      const comments = snapshot.val();
+      const commentsList = Object.keys(comments).map((key) => ({
+        id: key,
+        ...comments[key],
+      }));
+
+      return res.status(200).json({ comments: commentsList });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({
+        error: 'Unable to fetch comments',
+        details: error.message,
+      });
     }
   } else {
-    res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 }
