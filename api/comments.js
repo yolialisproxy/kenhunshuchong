@@ -20,13 +20,26 @@ const db = getDatabase(app);
 export default async (req, res) => {
   if (req.method === "GET") {
     try {
+      // 输出环境变量到网页
+      const envVars = {
+        FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
+        FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
+        FIREBASE_DATABASE_URL: process.env.FIREBASE_DATABASE_URL,
+        FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+        FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
+        FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID,
+        FIREBASE_APP_ID: process.env.FIREBASE_APP_ID
+      };
+
       // 假设在数据库里能找到数据
       const comments = {
         comments: [
           { id: 1, name: "测试用户", comment: "Hello World", date: Date.now() }
         ]
       };
-      res.status(200).json(comments);
+
+      // 返回数据和环境变量
+      res.status(200).json({ ...comments, envVars });
     } catch (error) {
       console.error("Error during GET:", error);
       res.status(500).json({ error: "读取数据失败" });
