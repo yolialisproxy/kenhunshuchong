@@ -1,54 +1,100 @@
 // api/comments.js
-import fetch from 'node-fetch';
+import { initializeApp, getApps } from "firebase/app";
+import { getDatabase, ref, push, set, get, update, child } from "firebase/database";
 
+// ========== Firebase 配置 ==========
 const firebaseConfig = {
-  databaseURL: process.env.FIREBASE_DATABASE_URL, // https://kenhunshuchong-default-rtdb.firebaseio.com
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.FIREBASE_DB_URL,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
 };
 
-export default async function handler(req, res) {
-  try {
-    const { method } = req;
-    if (method === 'POST') {
-      const { name, email, comment, slug } = req.body.fields || {};
+if (!getApps().length) {
+  initializeApp(firebaseConfig);
+}
+const db = getDatabase();
 
-      if (!name || !email || !comment || !slug) {
-        return res.status(400).json({ error: 'Missing required fields.' });
+// ========================== 辅助函数 ==========================
+async function getComments(postId) {
+  const snapshot = await get(ref(db, `comments/${postId}`));
+  return snapshot.exists() ? Object.values(snapshot.val()) : [];
+}
+
+// ========================== API Handler ==========================
+export default async function handler(req, res) {
+  const { method } = req;
+
+  if (method === "GET") {
+    try {
+      const { postId, page = 1, pageSize = 10 } = req.query;
+      if (!postId) return res.status(400).json({ error: "缺少 postId" });
+
+      const allComments = await getComments(postId);
+      allComments.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      const totalPages = Math.ceil(allComments.length / pageSize);
+      const pagedComments = allComments.slice((page - 1) * pageSize, page * pageSize);
+
+      res.status(200).json({ comments: pagedComments, totalPages });
+    } catch (err) {
+      res.status(500).json({ error: "读取评论失败" });
+    }
+    return;
+  }
+
+  if (method === "POST") {
+    try {
+      const { postId, name, email, comment, parentId } = req.body;
+      if (!postId || !name || !email || !comment) {
+        return res.status(400).json({ error: "缺少必要字段" });
       }
 
-      const data = {
+      const newCommentRef = push(ref(db, `comments/${postId}`));
+      const id = newCommentRef.key;
+      const newComment = {
+        id,
         name,
         email,
         comment,
+        parentId: parentId || null,
         date: new Date().toISOString(),
+        likes: 0,
       };
 
-      const url = `${firebaseConfig.databaseURL}/comments/${slug}.json`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Firebase write failed: ${response.statusText}`);
-      }
-
-      return res.status(200).json({ message: 'Comment submitted!' });
-    } else if (method === 'GET') {
-      const { slug } = req.query;
-      if (!slug) return res.status(400).json({ error: 'Missing slug.' });
-
-      const url = `${firebaseConfig.databaseURL}/comments/${slug}.json`;
-      const response = await fetch(url);
-      const data = await response.json();
-      const comments = data ? Object.values(data) : [];
-
-      return res.status(200).json({ comments });
-    } else {
-      return res.status(405).json({ error: 'Method not allowed.' });
+      await set(newCommentRef, newComment);
+      res.status(200).json(newComment);
+    } catch (err) {
+      res.status(500).json({ error: "提交评论失败" });
     }
-  } catch (err) {
-    console.error('API error:', err);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    return;
   }
+
+  // 点赞
+  if (method === "POST" && req.url.match(/\/api\/comments\/(.+)\/like/)) {
+    try {
+      const match = req.url.match(/\/api\/comments\/(.+)\/like/);
+      const commentId = match[1];
+      const postId = req.query.postId;
+      if (!postId || !commentId) return res.status(400).json({ error: "缺少 postId 或 commentId" });
+
+      const commentRef = ref(db, `comments/${postId}/${commentId}`);
+      const snapshot = await get(commentRef);
+      if (!snapshot.exists()) return res.status(404).json({ error: "评论不存在" });
+
+      const commentData = snapshot.val();
+      const likes = (commentData.likes || 0) + 1;
+      await update(commentRef, { likes });
+      res.status(200).json({ likes });
+    } catch {
+      res.status(500).json({ error: "点赞失败" });
+    }
+    return;
+  }
+
+  res.setHeader("Allow", ["GET", "POST"]);
+  res.status(405).end(`Method ${method} Not Allowed`);
 }
