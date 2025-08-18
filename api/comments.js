@@ -1,88 +1,60 @@
-import admin from "firebase-admin";
-import Cors from "cors";
+// api/comments.js
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
-// 初始化 CORS
-const cors = Cors({ origin: true });
+let app;
 
-// 初始化 Firebase
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      type: process.env.FIREBASE_TYPE,
-      project_id: process.env.FIREBASE_PROJECT_ID,
-      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-      private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-      client_email: process.env.FIREBASE_CLIENT_EMAIL,
-      client_id: process.env.FIREBASE_CLIENT_ID,
-      auth_uri: process.env.FIREBASE_AUTH_URI,
-      token_uri: process.env.FIREBASE_TOKEN_URI,
-      auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
-      client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
-    }),
-    databaseURL: process.env.FIREBASE_DATABASE_URL
-  });
-}
-
-const db = admin.firestore();
-
-// 帮助函数：等待 CORS 完成
-function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) reject(result);
-      else resolve(result);
+// === 初始化 Firebase Admin SDK ===
+if (!getApps().length) {
+  try {
+    app = initializeApp({
+      credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // 注意 privateKey 换行
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      }),
     });
-  });
+  } catch (err) {
+    console.error('Firebase init error:', err);
+  }
 }
 
-// API 处理
-export default async function handler(req, res) {
-  await runMiddleware(req, res, cors);
+const db = getFirestore(app);
 
-  if (req.method === "POST") {
-    try {
-      const { name, email, comment, slug } = req.body.fields || {};
+export default async function handler(req, res) {
+  try {
+    if (req.method === 'POST') {
+      const { name, email, comment, slug, redirect } = req.body.fields || {};
 
       if (!name || !email || !comment || !slug) {
-        return res.status(400).json({ error: "缺少必填字段" });
+        return res.status(400).json({ error: 'Missing required fields.' });
       }
 
-      const newComment = {
+      const data = {
         name,
         email,
         comment,
-        slug,
         date: new Date().toISOString(),
-        approved: false
       };
 
-      await db.collection("comments").add(newComment);
+      // 保存到 Firestore，collection 按文章 slug
+      await db.collection('comments').doc(slug).collection('entries').add(data);
 
-      return res.status(200).json({ message: "评论已提交，待审核" });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: "服务器错误" });
-    }
-  } else if (req.method === "GET") {
-    try {
-      const slug = req.query.slug;
-      if (!slug) return res.status(400).json({ error: "缺少 slug 参数" });
+      return res.status(200).json({ message: 'Comment submitted!' });
+    } else if (req.method === 'GET') {
+      const { slug } = req.query;
+      if (!slug) return res.status(400).json({ error: 'Missing slug.' });
 
-      const snapshot = await db
-        .collection("comments")
-        .where("slug", "==", slug)
-        .where("approved", "==", true)
-        .orderBy("date", "desc")
-        .get();
+      const snapshot = await db.collection('comments').doc(slug).collection('entries').orderBy('date', 'desc').get();
+      const comments = snapshot.docs.map(doc => doc.data());
 
-      const comments = snapshot.docs.map((doc) => doc.data());
       return res.status(200).json({ comments });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: "服务器错误" });
+    } else {
+      return res.status(405).json({ error: 'Method not allowed.' });
     }
-  } else {
-    res.setHeader("Allow", ["POST", "GET"]);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+  } catch (err) {
+    console.error('API error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
