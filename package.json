@@ -2,23 +2,10 @@
   "name": "custom-comment-system",
   "version": "1.0.0",
   "main": "api/comments.js",
-  "type": "commonjs",
+  "type": "module",
+  "dependencies": {
+  },
   "scripts": {
     "start": "node api/comments.js"
-  },
-  "description": "这里是为我个人博客写的评论系统。",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yolialisproxy/kenhunshuchong.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/yolialisproxy/kenhunshuchong/issues"
-  },
-  "homepage": "https://github.com/yolialisproxy/kenhunshuchong#readme",
-  "dependencies": {
-    "firebase-admin": "^13.4.0"
   }
 }
