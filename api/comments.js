@@ -1,30 +1,26 @@
-import admin from "firebase-admin";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set } from "firebase/database";
 
-// Firebase 环境变量（Vercel 配置）
-const {
-  FIREBASE_API_KEY,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_DATABASE_URL,
-  FIREBASE_PROJECT_ID,
-  FIREBASE_STORAGE_BUCKET,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_APP_ID,
-} = process.env;
+// Firebase 配置
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.FIREBASE_APP_ID,
+};
 
-// 初始化 Firebase Admin
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(), // 使用 Vercel secret 设置 GOOGLE_APPLICATION_CREDENTIALS 或直接用 serviceAccount JSON
-    databaseURL: FIREBASE_DATABASE_URL,
-  });
-}
+// 初始化 Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
-const db = admin.database();
-
+// 处理 GET 和 POST 请求
 export default async (req, res) => {
   if (req.method === "GET") {
     try {
-      // 模拟返回评论
+      // 假设在数据库里能找到数据
       const comments = {
         comments: [
           { id: 1, name: "测试用户", comment: "Hello World", date: Date.now() }
@@ -37,88 +33,34 @@ export default async (req, res) => {
     }
   } else if (req.method === "POST") {
     try {
-      // 读取请求体内容
+      // 获取请求体数据
       const { postId, name, email, comment } = req.body;
 
-      // 检查必填项是否存在
+      // 打印收到的请求数据，用于调试
+      console.log("收到的请求数据:", { postId, name, email, comment });
+
+      // 检查必填字段
       if (!postId || !name || !comment) {
+        console.error("缺少必填字段");
         return res.status(400).json({ error: "缺少必填字段" });
       }
 
-      // 模拟存储评论
-      const newComment = {
-        id: Date.now(),
-        name,
-        comment,
-        date: Date.now()
-      };
-
-      console.log("新评论已提交:", newComment); // 打印评论内容
-
-      // 返回响应
-      res.status(201).json({ message: "评论已提交", comment: newComment });
-    } catch (error) {
-      console.error("Error during POST:", error); // 打印错误信息
-      res.status(500).json({ error: "服务器错误" });
-    }
-  }
-};
-
-export default async function handler(req, res) {
-  const method = req.method;
-
-  try {
-    if (method === "GET") {
-      const postId = req.query.postId;
-      if (!postId) return res.status(400).json({ error: "postId 必须提供" });
-
-      const snapshot = await db.ref(`comments/${postId}`).once("value");
-      const comments = snapshot.val() || {};
-      // 转数组并排序
-      const list = Object.keys(comments).map(key => ({
-        id: key,
-        ...comments[key],
-      })).sort((a, b) => a.date - b.date);
-
-      return res.status(200).json({ comments: list });
-    }
-
-    if (method === "POST") {
-      const { postId, name, email, comment, parentId } = req.body;
-
-      if (!postId || !name || !email || !comment)
-        return res.status(400).json({ error: "缺少必要字段" });
-
-      const newRef = db.ref(`comments/${postId}`).push();
-      const newComment = {
+      // 向 Firebase 写入评论数据
+      const commentRef = ref(db, "comments/" + postId);
+      await set(commentRef, {
         name,
         email,
         comment,
-        parentId: parentId || null,
         date: Date.now(),
-        likes: 0,
-      };
+      });
 
-      await newRef.set(newComment);
-      return res.status(200).json({ success: true, id: newRef.key });
+      // 返回成功响应
+      res.status(201).json({ message: "评论已提交" });
+    } catch (error) {
+      console.error("Error during POST:", error);  // 打印错误信息
+      res.status(500).json({ error: "服务器错误" });
     }
-
-    // 点赞
-    if (method === "PUT") {
-      const { postId, id } = req.body;
-      if (!postId || !id) return res.status(400).json({ error: "缺少 postId 或 id" });
-
-      const commentRef = db.ref(`comments/${postId}/${id}/likes`);
-      const snapshot = await commentRef.once("value");
-      const likes = snapshot.val() || 0;
-      await commentRef.set(likes + 1);
-
-      return res.status(200).json({ likes: likes + 1 });
-    }
-
-    return res.status(405).json({ error: "方法不允许" });
-  } catch (err) {
-    console.error("Firebase Error:", err);
-    return res.status(500).json({ error: "服务器错误" });
+  } else {
+    res.status(405).json({ error: "不支持的请求方法" });
   }
-}
+};
