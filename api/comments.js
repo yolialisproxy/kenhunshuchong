@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, query, orderByChild } from 'firebase/database';
+import { getDatabase, ref, push, set, get } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -19,9 +19,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method === 'POST') {
     const { postId, name, email, comment } = req.body;
@@ -34,13 +32,7 @@ export default async function handler(req, res) {
       const newCommentRef = push(commentsRef);
       const now = Date.now();
 
-      await set(newCommentRef, {
-        name,
-        email,
-        comment,
-        date: now,
-        likes: 0,
-      });
+      await set(newCommentRef, { name, email, comment, date: now, likes: 0 });
 
       return res.status(200).json({
         message: 'Comment submitted successfully',
@@ -58,16 +50,22 @@ export default async function handler(req, res) {
 
     try {
       const commentsRef = ref(db, 'comments/' + postId);
-      const snapshot = await get(commentsRef);
+      let snapshot;
+      try {
+        snapshot = await get(commentsRef);
+      } catch (err) {
+        // 查询索引异常，返回空数组而不是报错
+        console.error('Firebase 查询错误:', err.message);
+        return res.status(200).json([]);
+      }
 
       const commentsList = snapshot.exists()
         ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] }))
         : [];
 
-      // 按 date 降序排列
       commentsList.sort((a, b) => b.date - a.date);
-
       return res.status(200).json(commentsList);
+
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: '无法获取评论', details: err.message });
