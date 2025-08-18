@@ -1,67 +1,69 @@
-// api/comments.js
-import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+// comments.js
+import admin from "firebase-admin";
 
-// ====== 初始化 Firebase ======
-if (!getApps().length) {
-  const serviceAccount = {
-    type: "service_account",
-    project_id: process.env.FIREBASE_PROJECT_ID,
-    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    client_id: process.env.FIREBASE_CLIENT_ID,
-    auth_uri: process.env.FIREBASE_AUTH_URI || "https://accounts.google.com/o/oauth2/auth",
-    token_uri: process.env.FIREBASE_TOKEN_URI || "https://oauth2.googleapis.com/token",
-    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
-    client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL
-  };
+// 从环境变量读取拆分的服务账号信息
+const serviceAccount = {
+  type: process.env.FIREBASE_TYPE,
+  project_id: process.env.FIREBASE_PROJECT_ID,
+  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  client_email: process.env.FIREBASE_CLIENT_EMAIL,
+  client_id: process.env.FIREBASE_CLIENT_ID,
+  auth_uri: process.env.FIREBASE_AUTH_URI,
+  token_uri: process.env.FIREBASE_TOKEN_URI,
+  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
+  universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN,
+};
 
-  initializeApp({
-    credential: cert(serviceAccount)
+// 初始化 Firebase
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: process.env.FIREBASE_DATABASE_URL, // 如果你用 Realtime DB
   });
 }
 
-const db = getFirestore();
+const db = admin.firestore(); // 如果你用 Firestore
+// const db = admin.database(); // 如果你用 Realtime Database
 
-// ====== API Handler ======
 export default async function handler(req, res) {
-  const collectionName = "comments";
-
   if (req.method === "POST") {
-    const { name, email, comment, slug } = req.body.fields || {};
-    if (!name || !email || !comment || !slug) {
-      return res.status(400).json({ error: "Missing fields" });
-    }
-
     try {
-      await db.collection(collectionName).doc(slug).collection("items").add({
+      const { name, email, comment, slug, redirect } = req.body.fields;
+
+      if (!name || !email || !comment || !slug) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // 写入 Firestore
+      const docRef = await db.collection("comments").doc(slug).collection("comments").add({
         name,
         email,
         comment,
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
       });
-      return res.status(200).json({ ok: true });
+
+      // 返回成功信息
+      return res.status(200).json({ message: "Comment submitted successfully", id: docRef.id });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: "Failed to save comment" });
+      return res.status(500).json({ error: "Failed to submit comment" });
     }
-  }
-
-  if (req.method === "GET") {
-    const slug = req.query.slug;
-    if (!slug) return res.status(400).json({ error: "Missing slug" });
-
+  } else if (req.method === "GET") {
     try {
-      const snapshot = await db.collection(collectionName).doc(slug).collection("items").orderBy("date", "desc").get();
-      const comments = snapshot.docs.map(doc => doc.data());
+      const { slug } = req.query;
+      if (!slug) return res.status(400).json({ error: "Missing slug" });
+
+      const snapshot = await db.collection("comments").doc(slug).collection("comments").orderBy("date", "desc").get();
+      const comments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
       return res.status(200).json(comments);
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: "Failed to fetch comments" });
     }
+  } else {
+    return res.status(405).json({ error: "Method not allowed" });
   }
-
-  res.setHeader("Allow", ["GET", "POST"]);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
 }
