@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get } from 'firebase/database';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, push, set, get, query, orderByChild } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -11,67 +11,63 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID,
 };
 
+// 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
 
-  if (req.method === 'POST') {
+  if (req.method === "POST") {
     const { postId, name, email, comment } = req.body;
     if (!postId || !name || !email || !comment) {
-      return res.status(400).json({ error: '缺少必填字段' });
+      return res.status(400).json({ error: "缺少必填字段" });
     }
 
     try {
-      const commentsRef = ref(db, 'comments/' + postId);
+      const commentsRef = ref(db, "comments/" + postId);
       const newCommentRef = push(commentsRef);
-      const now = Date.now();
-
-      await set(newCommentRef, { name, email, comment, date: now, likes: 0 });
-
-      return res.status(200).json({
-        message: 'Comment submitted successfully',
-        comment: { id: newCommentRef.key, name, email, comment, date: now, likes: 0 }
-      });
+      const commentData = {
+        id: newCommentRef.key,
+        name,
+        email,
+        comment,
+        date: Date.now(),
+        likes: 0,
+      };
+      await set(newCommentRef, commentData);
+      return res.status(200).json({ message: "提交成功", comment: commentData });
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: '无法提交评论', details: err.message });
+      return res.status(500).json({ error: "提交失败", details: err.message });
     }
   }
 
-  if (req.method === 'GET') {
+  if (req.method === "GET") {
     const { postId } = req.query;
-    if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
+    if (!postId) return res.status(400).json({ error: "缺少 postId 参数" });
 
     try {
-      const commentsRef = ref(db, 'comments/' + postId);
-      let snapshot;
-      try {
-        snapshot = await get(commentsRef);
-      } catch (err) {
-        // 查询索引异常，返回空数组而不是报错
-        console.error('Firebase 查询错误:', err.message);
-        return res.status(200).json([]);
-      }
-
+      const commentsRef = ref(db, "comments/" + postId);
+      const commentsQuery = query(commentsRef, orderByChild("date"));
+      const snapshot = await get(commentsQuery);
       const commentsList = snapshot.exists()
-        ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] }))
+        ? Object.keys(snapshot.val()).map((key) => ({ id: key, ...snapshot.val()[key] }))
         : [];
-
-      commentsList.sort((a, b) => b.date - a.date);
       return res.status(200).json(commentsList);
-
     } catch (err) {
       console.error(err);
-      return res.status(500).json({ error: '无法获取评论', details: err.message });
+      return res.status(500).json({ error: "加载评论失败", details: err.message });
     }
   }
 
-  res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
-  return res.status(405).end(`Method ${req.method} Not Allowed`);
+  res.setHeader("Allow", ["GET", "POST"]);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
 }
