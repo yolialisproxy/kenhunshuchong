@@ -30,7 +30,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: "缺少 commentId" });
     }
 
-    const db = getDatabase();
     const commentRef = ref(db, "comments/" + commentId + "/likes");
 
     // 原子操作，避免并发覆盖
