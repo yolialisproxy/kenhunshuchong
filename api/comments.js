@@ -208,7 +208,7 @@ export default async function handler(req, res) {
 
   try {
     // ===== 用户相关 =====
-    const action = req.body.action;
+    const action = req.query.action;
     if (req.method === "POST" && action === "register") {
       return await registerUserHandler(req, res);
     }
