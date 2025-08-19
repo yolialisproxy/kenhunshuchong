@@ -1,80 +1,85 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, orderByChild, query } from 'firebase/database';
+const API_BASE = "https://kenhunshuchong.vercel.app/api/comments";
+const commentsContainer = document.getElementById("comments-list");
+const postId = commentsContainer?.dataset.postId;
 
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  // POST 提交新评论
-  if (req.method === 'POST') {
-    const { postId, name, email, comment } = req.body;
-    if (!postId || !name || !email || !comment) {
-      return res.status(400).json({ error: '缺少必填字段' });
-    }
-
-    try {
-      const commentsRef = ref(db, 'comments/' + postId);
-      const newCommentRef = push(commentsRef);
-      const newComment = {
-        id: newCommentRef.key,
-        name,
-        email,
-        comment,
-        date: Date.now(),
-        likes: 0
-      };
-      await set(newCommentRef, newComment);
-      return res.status(200).json(newComment);
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: '提交评论失败', details: err.message });
-    }
-  }
-
-  // GET 加载评论
-  if (req.method === 'GET') {
-    const { postId } = req.query;
-    if (!postId) {
-      return res.status(400).json({ error: '缺少 postId 参数' });
-    }
-
-    try {
-      const commentsRef = ref(db, 'comments/' + postId);
-      const snapshot = await get(query(commentsRef, orderByChild('date')));
-      const data = snapshot.val();
-
-      if (!data) {
-        return res.status(200).json([]); // 空数组
-      }
-
-      // 转换成数组并按 date 升序
-      const comments = Object.values(data).sort((a, b) => a.date - b.date);
-      return res.status(200).json(comments);
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: '加载评论失败', details: err.message });
-    }
-  }
-
-  res.setHeader('Allow', ['GET', 'POST']);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
+function escapeHTML(str) {
+  return str.replace(/[&<>'"]/g, tag =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[tag] || tag)
+  );
 }
+
+function showToast(msg, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.innerText = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function renderComment(c) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "comment";
+  wrapper.innerHTML = `
+    <div class="comment-header">
+      <strong>${escapeHTML(c.name)}</strong>
+      <span class="comment-date">${new Date(c.date).toLocaleString()}</span>
+    </div>
+    <div class="comment-body">${escapeHTML(c.comment)}</div>
+    <div class="comment-actions">
+      <button class="like-btn" data-id="${c.id}">👍 ${c.likes || 0}</button>
+    </div>
+  `;
+
+  // 点赞逻辑（可拓展）
+  wrapper.querySelector(".like-btn").addEventListener("click", async e => {
+    showToast("点赞功能可在后端拓展");
+  });
+
+  return wrapper;
+}
+
+async function loadComments() {
+  commentsContainer.innerHTML = "<p>加载中...</p>";
+  try {
+    const res = await fetch(`${API_BASE}?postId=${postId}`);
+    if (!res.ok) throw new Error("加载失败");
+    const data = await res.json();
+    commentsContainer.innerHTML = "";
+    if (data.length === 0) {
+      commentsContainer.innerHTML = "<p>暂无评论</p>";
+      return;
+    }
+    data.forEach(c => commentsContainer.appendChild(renderComment(c)));
+  } catch (err) {
+    commentsContainer.innerHTML = "<p>加载失败</p>";
+    console.error(err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadComments();
+
+  const form = document.getElementById("comment-form");
+  form?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = document.getElementById("name").value;
+    const email = document.getElementById("email").value;
+    const comment = document.getElementById("comment").value;
+    const data = { postId, name, email, comment };
+
+    try {
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("提交失败");
+      form.reset();
+      showToast("评论提交成功！");
+      loadComments();
+    } catch (err) {
+      showToast("评论提交失败", "error");
+      console.error(err);
+    }
+  });
+});
