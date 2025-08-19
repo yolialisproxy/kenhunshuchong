@@ -1,3 +1,4 @@
+// api/index.js
 import { submitComment, getComments, deleteComment, editComment } from "./comments";
 import { registerUser, loginUser } from "./user";
 
@@ -9,23 +10,14 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    // ========== 用户相关 ==========
-    if (req.url.startsWith("/api/user")) {
-      if (req.method === "POST") {
-        const { action, username, password } = req.body;
+    const { action } = req.query;
 
-        if (action === "register") {
-          const result = await registerUser(username, password);
-          return res.status(result.status).json(result.body);
-        } else if (action === "login") {
-          const result = await loginUser(username, password);
-          return res.status(result.status).json(result.body);
-        } else {
-          return res.status(400).json({ error: "无效的用户操作" });
-        }
-      } else {
-        return res.status(405).json({ error: "Method not allowed" });
-      }
+    // ========== 用户相关 ==========
+    if (action === "register" && req.method === "POST") {
+      return await registerUser(req, res);
+    }
+    if (action === "login" && req.method === "POST") {
+      return await loginUser(req, res);
     }
 
     // ========== 评论相关 ==========
