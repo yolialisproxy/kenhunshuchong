@@ -31,7 +31,7 @@ export async function registerUserHandler(req, res) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    const userRef = ref(db, `users/${username}`);
+    const userRef = ref(db, `users/username` + username);
     const snapshot = await get(userRef);
 
     if (snapshot.exists()) {
