@@ -39,12 +39,12 @@ export default async function handler(req, res) {
 
       if (snapshot.exists()) {
         const comments = snapshot.val();
-        // 如果是子楼，floor 可以根据 parentId 计算
+        // 计算楼层
         if (parentId === '0') {
-          // 初楼，floor 为当前已有初楼数量 +1
+          // 初楼数量 +1
           floor = Object.values(comments).filter(c => c.parentId === '0').length + 1;
         } else {
-          // 子楼，floor 为已有子楼数量 +1
+          // 子楼数量 +1
           floor =
             Object.values(comments).filter(c => c.parentId === parentId).length + 1;
         }
@@ -73,32 +73,45 @@ export default async function handler(req, res) {
   // ================= GET 加载评论 =================
   if (req.method === 'GET') {
     const { postId } = req.query;
-    if (!postId) {
-      return res.status(400).json({ error: '缺少 postId 参数' });
-    }
+    if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
     try {
       const commentsRef = ref(db, 'comments/' + postId);
       const snapshot = await get(commentsRef);
 
-      if (!snapshot.exists()) {
-        return res.status(200).json([]);
-      }
+      if (!snapshot.exists()) return res.status(200).json([]);
 
       const comments = snapshot.val();
-      const commentsList = Object.keys(comments)
-        .map(key => comments[key])
-        .sort((a, b) => {
-          // 先按父楼排序，再按日期排序
-          if (a.parentId === b.parentId) {
-            return a.date - b.date;
-          }
-          if (a.parentId === '0') return -1;
-          if (b.parentId === '0') return 1;
-          return a.date - b.date;
-        });
 
-      return res.status(200).json(commentsList);
+      // 构建父子关系
+      const commentMap = {};
+      Object.values(comments).forEach(c => {
+        c.children = [];
+        commentMap[c.id] = c;
+      });
+
+      const tree = [];
+      Object.values(commentMap).forEach(c => {
+        if (c.parentId === '0') {
+          tree.push(c);
+        } else {
+          const parent = commentMap[c.parentId];
+          if (parent) parent.children.push(c);
+          else tree.push(c); // 容错：找不到父楼，归为顶层
+        }
+      });
+
+      // 递归排序子楼
+      function sortComments(arr) {
+        arr.sort((a, b) => a.floor - b.floor);
+        arr.forEach(c => {
+          if (c.children.length > 0) sortComments(c.children);
+        });
+      }
+
+      sortComments(tree);
+
+      return res.status(200).json(tree);
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: '无法加载评论', details: error.message });
