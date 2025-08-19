@@ -7,7 +7,10 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  
+
+  console.log("req.query:", req.query);
+  console.log("req.method:", req.method);
+  console.log("req.body:", req.body);
 
   try {
     // 支持 action 放在 query 或者 body 中
