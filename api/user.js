@@ -18,6 +18,11 @@ const db = getDatabase(app);
 
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
+  // =================== CORS ===================
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  
   try {
     const { username, email, password } = req.body || {};
 
@@ -50,6 +55,11 @@ export async function registerUserHandler(req, res) {
 
 // =================== 用户登录 ===================
 export async function loginUserHandler(req, res) {
+  // =================== CORS ===================
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  
   try {
     const { username, password } = req.body || {};
 
