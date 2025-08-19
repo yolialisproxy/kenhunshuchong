@@ -214,7 +214,7 @@ export default async function handler(req, res) {
     }
     if (req.method === "POST" && action === "login") {
       return await loginUserHandler(req, res);
-
+    }
     if (req.method === 'POST') {
       // 判断是否为点赞请求
       if (req.body.action === 'like') {
