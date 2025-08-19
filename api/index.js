@@ -1,35 +1,25 @@
-// api/index.js
 import { submitComment, getComments, deleteComment, editComment } from "./comments";
-import { registerUser, loginUser } from "./user";
+import { registerUserHandler, loginUserHandler } from "./user";
 
 export default async function handler(req, res) {
   // =================== CORS ===================
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  console.log("req.query:", req.query);
-  console.log("req.method:", req.method);
-  console.log("req.body:", req.body);
+  if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    // 支持 action 放在 query 或者 body 中
-    const action = (req.query && req.query.action) || (req.body && req.body.action) || null;
+    const action = req.query.action;
 
-    // ========== 用户相关 ==========
-    if (req.method === 'POST') {
-      const action = req.query.action;
-      if (action === 'register') {
-        return await registerUserHandler(req, res);
-      } else if (action === 'login') {
-        return await loginUserHandler(req, res);
-      } else {
-        return await submitComment(req, res);
-      }
+    // ===== 用户相关 =====
+    if (req.method === "POST" && action === "register") {
+      return await registerUserHandler(req, res);
+    }
+    if (req.method === "POST" && action === "login") {
+      return await loginUserHandler(req, res);
     }
 
-
-    // ========== 评论相关 ==========
+    // ===== 评论相关 =====
     switch (req.method) {
       case "POST":
         return await submitComment(req, res);
@@ -44,6 +34,6 @@ export default async function handler(req, res) {
     }
   } catch (err) {
     console.error("API error:", err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    return res.status(500).json({ error: "服务器错误", details: err.message });
   }
 }
