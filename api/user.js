@@ -23,7 +23,7 @@ export async function registerUserHandler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  alert"dsfjdsklfj";
+  alert("dsfjdsklfj");
   try {
     const { username, email, password } = req.body;
 
