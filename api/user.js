@@ -1,62 +1,75 @@
-import bcrypt from "bcryptjs";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set } from "firebase/database";
+// api/user.js
+import fs from "fs";
+import path from "path";
 
-// =================== Firebase 初始化 ===================
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.FIREBASE_DB_URL,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const usersFile = path.join(process.cwd(), "data", "users.json");
 
-// =================== 用户注册 ===================
-export async function registerUser(username, password) {
-  if (!username || !password) {
-    return { status: 400, body: { error: "缺少用户名或密码" } };
+// ========== 工具函数 ==========
+function readUsers() {
+  if (!fs.existsSync(usersFile)) return [];
+  const raw = fs.readFileSync(usersFile, "utf-8");
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [];
   }
-
-  const userRef = ref(db, `users/${username}`);
-  const snapshot = await get(userRef);
-
-  if (snapshot.exists()) {
-    return { status: 409, body: { error: "用户名已存在" } };
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  await set(userRef, {
-    username,
-    password: hashedPassword,
-    createdAt: Date.now(),
-  });
-
-  return { status: 200, body: { message: "注册成功" } };
 }
 
-// =================== 用户登录 ===================
-export async function loginUser(username, password) {
+function writeUsers(users) {
+  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2));
+}
+
+// ========== 注册 ==========
+export async function registerUser(req, res) {
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: "用户名、邮箱和密码不能为空" });
+  }
+
+  const users = readUsers();
+
+  // 检查用户名是否存在
+  if (users.some((u) => u.username === username)) {
+    return res.status(400).json({ error: "用户名已存在" });
+  }
+
+  // 检查邮箱是否存在
+  if (users.some((u) => u.email === email)) {
+    return res.status(400).json({ error: "该邮箱已被注册" });
+  }
+
+  const newUser = {
+    id: Date.now(),
+    username,
+    email,
+    password, // ⚠️ 生产环境请用 bcrypt.hash 加密
+    createdAt: new Date().toISOString(),
+  };
+
+  users.push(newUser);
+  writeUsers(users);
+
+  return res.status(201).json({ message: "注册成功", user: { username, email } });
+}
+
+// ========== 登录 ==========
+export async function loginUser(req, res) {
+  const { username, password } = req.body;
+
   if (!username || !password) {
-    return { status: 400, body: { error: "缺少用户名或密码" } };
+    return res.status(400).json({ error: "用户名和密码不能为空" });
   }
 
-  const userRef = ref(db, `users/${username}`);
-  const snapshot = await get(userRef);
+  const users = readUsers();
 
-  if (!snapshot.exists()) {
-    return { status: 404, body: { error: "用户不存在" } };
+  const user = users.find((u) => u.username === username && u.password === password);
+  if (!user) {
+    return res.status(401).json({ error: "用户名或密码错误" });
   }
 
-  const userData = snapshot.val();
-  const match = await bcrypt.compare(password, userData.password);
-
-  if (!match) {
-    return { status: 401, body: { error: "密码错误" } };
-  }
-
-  return { status: 200, body: { message: "登录成功", user: { username } } };
+  return res.status(200).json({
+    message: "登录成功",
+    user: { username: user.username, email: user.email },
+  });
 }
