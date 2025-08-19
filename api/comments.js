@@ -1,5 +1,6 @@
+// api/comments.js
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update } from 'firebase/database';
+import { getDatabase, ref, push, set, get, child, update } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -14,30 +15,45 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// =================== 工具函数 ===================
-export async function submitComment(req, res) {
-   // ================= CORS =================
+// =================== CORS helper ===================
+function handleCORS(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  const { postId, name, email, comment, parentId = '0' } = req.body;
-  if (!postId || !name || !email || !comment) {
-    return res.status(400).json({ error: '缺少必填字段' });
-  }
+}
+
+// =================== 提交评论 ===================
+export async function submitComment(req, res) {
+  handleCORS(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const { postId, name, email, comment, parentId = '0', action, commentId } = req.body;
 
   try {
     const commentsRef = ref(db, 'comments/' + postId);
     const snapshot = await get(commentsRef);
     let floor = 1;
+    const comments = snapshot.exists() ? snapshot.val() : {};
 
-    if (snapshot.exists()) {
-      const comments = snapshot.val();
-      if (parentId === '0') {
-        floor = Object.values(comments).filter(c => c.parentId === '0').length + 1;
-      } else {
-        floor = Object.values(comments).filter(c => c.parentId === parentId).length + 1;
-      }
+    if (action === 'like') {
+      if (!commentId) return res.status(400).json({ error: '缺少 commentId' });
+      const targetRef = child(commentsRef, commentId);
+      const targetSnap = await get(targetRef);
+      if (!targetSnap.exists()) return res.status(404).json({ error: '评论不存在' });
+      const likes = (targetSnap.val().likes || 0) + 1;
+      await update(targetRef, { likes });
+      return res.status(200).json({ likes });
+    }
+
+    // 普通评论
+    if (!postId || !name || !email || !comment) {
+      return res.status(400).json({ error: '缺少必填字段' });
+    }
+
+    if (parentId === '0') {
+      floor = Object.values(comments).filter(c => c.parentId === '0').length + 1;
+    } else {
+      floor = Object.values(comments).filter(c => c.parentId === parentId).length + 1;
     }
 
     const newCommentRef = push(commentsRef);
@@ -51,7 +67,6 @@ export async function submitComment(req, res) {
       parentId,
       floor,
     };
-
     await set(newCommentRef, data);
     return res.status(200).json(data);
   } catch (error) {
@@ -60,12 +75,11 @@ export async function submitComment(req, res) {
   }
 }
 
+// =================== 获取评论 ===================
 export async function getComments(req, res) {
-   // ================= CORS =================
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+  handleCORS(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   const { postId } = req.query;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
@@ -76,24 +90,21 @@ export async function getComments(req, res) {
 
     const comments = snapshot.val();
     const commentMap = {};
-    Object.values(comments).forEach(c => {
-      c.children = [];
-      commentMap[c.id] = c;
-    });
+    Object.values(comments).forEach(c => { c.children = []; commentMap[c.id] = c; });
 
     const tree = [];
     Object.values(commentMap).forEach(c => {
       if (c.parentId === '0') tree.push(c);
       else if (commentMap[c.parentId]) commentMap[c.parentId].children.push(c);
-      else tree.push(c); // 容错
+      else tree.push(c);
     });
 
     function sortComments(arr) {
       arr.sort((a, b) => a.floor - b.floor);
       arr.forEach(c => { if (c.children.length > 0) sortComments(c.children); });
     }
-    sortComments(tree);
 
+    sortComments(tree);
     return res.status(200).json(tree);
   } catch (error) {
     console.error(error);
@@ -101,48 +112,18 @@ export async function getComments(req, res) {
   }
 }
 
-export async function likeComment(req, res) {
-   // ================= CORS =================
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  const { postId, commentId } = req.body;
-  if (!postId || !commentId) return res.status(400).json({ error: '缺少 postId 或 commentId' });
-
-  try {
-    const commentRef = ref(db, `comments/${postId}/${commentId}`);
-    const snapshot = await get(commentRef);
-    if (!snapshot.exists()) return res.status(404).json({ error: '评论不存在' });
-
-    const comment = snapshot.val();
-    const newLikes = (comment.likes || 0) + 1;
-
-    await update(commentRef, { likes: newLikes });
-    return res.status(200).json({ likes: newLikes });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: '无法点赞', details: error.message });
-  }
-}
-
-// ================= 可选的 DELETE/PUT =================
+// =================== 删除评论 ===================
 export async function deleteComment(req, res) {
-   // ================= CORS =================
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // 这里可以实现删除逻辑
-  res.status(501).json({ error: 'deleteComment 尚未实现' });
+  handleCORS(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  // TODO: 实现删除逻辑
+  res.status(501).json({ error: 'deleteComment 未实现' });
 }
 
+// =================== 编辑评论 ===================
 export async function editComment(req, res) {
-   // ================= CORS =================
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  // 这里可以实现编辑逻辑
-  res.status(501).json({ error: 'editComment 尚未实现' });
+  handleCORS(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  // TODO: 实现编辑逻辑
+  res.status(501).json({ error: 'editComment 未实现' });
 }
