@@ -16,6 +16,11 @@ const db = getDatabase(app);
 
 // =================== 工具函数 ===================
 export async function submitComment(req, res) {
+   // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   const { postId, name, email, comment, parentId = '0' } = req.body;
   if (!postId || !name || !email || !comment) {
     return res.status(400).json({ error: '缺少必填字段' });
@@ -56,6 +61,11 @@ export async function submitComment(req, res) {
 }
 
 export async function getComments(req, res) {
+   // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   const { postId } = req.query;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
@@ -92,6 +102,11 @@ export async function getComments(req, res) {
 }
 
 export async function likeComment(req, res) {
+   // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   const { postId, commentId } = req.body;
   if (!postId || !commentId) return res.status(400).json({ error: '缺少 postId 或 commentId' });
 
@@ -113,11 +128,21 @@ export async function likeComment(req, res) {
 
 // ================= 可选的 DELETE/PUT =================
 export async function deleteComment(req, res) {
+   // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   // 这里可以实现删除逻辑
   res.status(501).json({ error: 'deleteComment 尚未实现' });
 }
 
 export async function editComment(req, res) {
+   // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   // 这里可以实现编辑逻辑
   res.status(501).json({ error: 'editComment 尚未实现' });
 }
