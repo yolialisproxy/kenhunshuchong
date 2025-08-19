@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, query, orderByChild } from 'firebase/database';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, push, set, get, query, orderByChild } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -15,67 +15,58 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     res.status(200).end();
     return;
   }
 
-  const postId = req.method === 'GET' ? req.query.postId : req.body.postId;
-  if (!postId) {
-    return res.status(400).json({ error: 'Missing postId parameter' });
-  }
+  if (req.method === "POST") {
+    const { postId, name, email, comment } = req.body;
+    if (!postId || !name || !email || !comment) {
+      return res.status(400).json({ error: "缺少必要字段" });
+    }
 
-  try {
-    if (req.method === 'POST') {
-      const { name, email, comment } = req.body;
-      if (!name || !email || !comment) {
-        return res.status(400).json({ error: 'Missing name, email, or comment' });
-      }
-
+    try {
       const commentsRef = ref(db, `comments/${postId}`);
       const newCommentRef = push(commentsRef);
-      const dateNow = Date.now();
-      await set(newCommentRef, {
+      const newComment = {
         id: newCommentRef.key,
         name,
         email,
         comment,
-        date: dateNow,
+        date: Date.now(),
         likes: 0,
-      });
-
-      return res.status(200).json({
-        message: 'Comment submitted successfully',
-        comment: {
-          id: newCommentRef.key,
-          name,
-          email,
-          comment,
-          date: dateNow,
-          likes: 0,
-        }
-      });
+      };
+      await set(newCommentRef, newComment);
+      return res.status(200).json(newComment);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "提交失败", details: err.message });
     }
-
-    if (req.method === 'GET') {
-      const commentsRef = ref(db, `comments/${postId}`);
-      const q = query(commentsRef, orderByChild('date'));
-      const snapshot = await get(q);
-
-      const commentsData = snapshot.val() || {};
-      const commentsList = Object.keys(commentsData).map(key => commentsData[key]);
-
-      return res.status(200).json({ comments: commentsList });
-    }
-
-    res.setHeader('Allow', ['GET', 'POST', 'OPTIONS']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Unable to fetch or submit comments', details: error.message });
   }
+
+  if (req.method === "GET") {
+    const { postId } = req.query;
+    if (!postId) return res.status(400).json({ error: "缺少 postId 参数" });
+
+    try {
+      const commentsRef = ref(db, `comments/${postId}`);
+      const snapshot = await get(commentsRef);
+      const commentsData = snapshot.val() || {};
+      const commentsList = Object.keys(commentsData)
+        .map((key) => commentsData[key])
+        .sort((a, b) => a.date - b.date); // 按时间升序
+      return res.status(200).json(commentsList);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: "加载评论失败", details: err.message });
+    }
+  }
+
+  res.setHeader("Allow", ["GET", "POST"]);
+  res.status(405).end(`Method ${req.method} Not Allowed`);
 }
