@@ -10,14 +10,20 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { action } = req.query;
+    // 支持 action 放在 query 或者 body 中
+    const action = (req.query && req.query.action) || (req.body && req.body.action) || null;
 
     // ========== 用户相关 ==========
     if (action === "register" && req.method === "POST") {
-      return await registerUser(req, res);
+      // 传入 req.body 给 user 模块（模块返回 {status, body}）
+      const { username, email, password } = req.body || {};
+      const result = await registerUser({ username, email, password });
+      return res.status(result.status).json(result.body);
     }
     if (action === "login" && req.method === "POST") {
-      return await loginUser(req, res);
+      const { username, password } = req.body || {};
+      const result = await loginUser({ username, password });
+      return res.status(result.status).json(result.body);
     }
 
     // ========== 评论相关 ==========
