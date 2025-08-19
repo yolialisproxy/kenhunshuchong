@@ -1,48 +1,42 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update } from 'firebase/database';
-
+import bcrypt from "bcryptjs";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, get, set } from "firebase/database";
 
 // =================== Firebase 初始化 ===================
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
+  databaseURL: process.env.FIREBASE_DB_URL,
   projectId: process.env.FIREBASE_PROJECT_ID,
   storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+  messagingSenderId: process.env.FIREBASE_SENDER_ID,
   appId: process.env.FIREBASE_APP_ID,
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
-  // =================== CORS ===================
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  alert("dsfjdsklfj");
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password } = req.body || {};
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    const userRef = ref(db, `users/username` + username);
+    const userRef = ref(db, `users/${username}`);
     const snapshot = await get(userRef);
 
     if (snapshot.exists()) {
       return res.status(409).json({ error: "用户名已存在" });
     }
-    
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     await set(userRef, {
       username,
       email,
-      password: password,
+      password: hashedPassword,
       createdAt: Date.now(),
     });
 
@@ -55,11 +49,6 @@ export async function registerUserHandler(req, res) {
 
 // =================== 用户登录 ===================
 export async function loginUserHandler(req, res) {
-  // =================== CORS ===================
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  
   try {
     const { username, password } = req.body || {};
 
@@ -75,8 +64,9 @@ export async function loginUserHandler(req, res) {
     }
 
     const userData = snapshot.val();
+    const match = await bcrypt.compare(password, userData.password);
 
-    if (password != userData.password) {
+    if (!match) {
       return res.status(401).json({ error: "密码错误" });
     }
 
@@ -90,16 +80,12 @@ export async function loginUserHandler(req, res) {
   }
 }
 
+
 export default async function handler(req, res) {
   // ================= CORS =================
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
 
   try {
     const action = req.query.action;
