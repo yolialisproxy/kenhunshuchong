@@ -17,17 +17,17 @@ export default async function handler(req, res) {
     const action = (req.query && req.query.action) || (req.body && req.body.action) || null;
 
     // ========== 用户相关 ==========
-    if (action === "register" && req.method === "POST") {
-      // 传入 req.body 给 user 模块（模块返回 {status, body}）
-      const { username, email, password } = req.body || {};
-      const result = await registerUser({ username, email, password });
-      return res.status(result.status).json(result.body);
+    if (req.method === 'POST') {
+      const action = req.query.action;
+      if (action === 'register') {
+        return await registerUserHandler(req, res);
+      } else if (action === 'login') {
+        return await loginUserHandler(req, res);
+      } else {
+        return await submitComment(req, res);
+      }
     }
-    if (action === "login" && req.method === "POST") {
-      const { username, password } = req.body || {};
-      const result = await loginUser({ username, password });
-      return res.status(result.status).json(result.body);
-    }
+
 
     // ========== 评论相关 ==========
     switch (req.method) {
