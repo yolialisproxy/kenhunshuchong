@@ -20,10 +20,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  if (req.method !== "POST") {
-    return res.status(405).json({ success: false, message: "Method Not Allowed" });
-  }
-
   try {
     const { commentId } = req.body;
     if (!commentId) {
