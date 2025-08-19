@@ -25,7 +25,7 @@ export async function registerUserHandler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   
   try {
-    const { username, email, password } = req.body || {};
+    const { username, email, password } = req.body;
 
     if (!username || !email || !password) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
