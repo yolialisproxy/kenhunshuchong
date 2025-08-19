@@ -16,6 +16,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+try {
+    const action = req.query.action;
+
+    // ===== 用户相关 =====
+    if (req.method === "POST" && action === "register") {
+      return await registerUserHandler(req, res);
+    }
+    if (req.method === "POST" && action === "login") {
+      return await loginUserHandler(req, res);
+}
+
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
   // =================== CORS ===================
