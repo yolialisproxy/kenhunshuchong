@@ -1,5 +1,4 @@
-import { submitComment, getComments, deleteComment, editComment } from "./comments";
-import { registerUserHandler, loginUserHandler } from "./user";
+import { submitComment, getComments, deleteComment, editComment, registerUserHandler, loginUserHandler } from "./comments";
 
 export default async function handler(req, res) {
   // =================== CORS ===================
