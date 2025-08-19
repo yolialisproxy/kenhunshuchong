@@ -13,6 +13,6 @@
     "firebase-admin": "^13.4.0"
   },
   "scripts": {
-    "start": "node api/comments.js"
+    "start": "node api/index.js"
   }
 }
