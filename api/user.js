@@ -17,6 +17,11 @@ const db = getDatabase(app);
 
 // =================== 用户注册 ===================
 export async function registerUser({ username, email, password }) {
+  // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (!username || !email || !password) {
     return { status: 400, body: { error: "缺少用户名、邮箱或密码" } };
   }
@@ -53,6 +58,11 @@ export async function registerUser({ username, email, password }) {
 
 // =================== 用户登录 ===================
 export async function loginUser({ username, password }) {
+  // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
   if (!username || !password) {
     return { status: 400, body: { error: "缺少用户名或密码" } };
   }
