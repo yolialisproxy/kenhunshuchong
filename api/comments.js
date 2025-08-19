@@ -15,6 +15,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
+  // CORS 头
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -24,47 +25,56 @@ export default async function handler(req, res) {
     return;
   }
 
+  // POST 提交评论
   if (req.method === 'POST') {
     const { postId, name, email, comment } = req.body;
     if (!postId || !name || !email || !comment) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: '缺少必填字段' });
     }
+
     try {
       const commentsRef = ref(db, 'comments/' + postId);
       const newCommentRef = push(commentsRef);
-      const newComment = {
+      const data = {
+        id: newCommentRef.key,
         name,
         email,
         comment,
         date: Date.now(),
         likes: 0
       };
-      await set(newCommentRef, newComment);
-      return res.status(200).json({ ...newComment, id: newCommentRef.key });
+      await set(newCommentRef, data);
+      return res.status(200).json(data);
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: 'Unable to submit comment', details: error.message });
+      return res.status(500).json({ error: '无法提交评论', details: error.message });
     }
   }
 
+  // GET 加载评论
   if (req.method === 'GET') {
     const { postId } = req.query;
-    if (!postId) return res.status(400).json({ error: 'Missing postId parameter' });
+    if (!postId) {
+      return res.status(400).json({ error: '缺少 postId 参数' });
+    }
 
     try {
-      const snapshot = await get(ref(db, 'comments/' + postId));
-      if (!snapshot.exists()) return res.status(200).json([]); // 没有评论返回空数组
+      const commentsRef = ref(db, 'comments/' + postId);
+      const snapshot = await get(commentsRef);
 
-      const data = snapshot.val();
-      const commentsList = Object.keys(data).map(key => ({
-        id: key,
-        ...data[key]
-      })).sort((a, b) => a.date - b.date); // 按时间升序
+      if (!snapshot.exists()) {
+        return res.status(200).json([]); // 没有评论返回空数组
+      }
+
+      const comments = snapshot.val();
+      const commentsList = Object.keys(comments)
+        .map(key => comments[key])
+        .sort((a, b) => a.date - b.date); // 按日期升序
 
       return res.status(200).json(commentsList);
     } catch (error) {
       console.error(error);
-      return res.status(500).json({ error: 'Unable to fetch comments', details: error.message });
+      return res.status(500).json({ error: '无法加载评论', details: error.message });
     }
   }
 
