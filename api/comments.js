@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, child } from 'firebase/database';
+import { getDatabase, ref, push, set, get } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export default async function handler(req, res) {
-  // CORS 头
+  // ================= CORS =================
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -25,15 +25,31 @@ export default async function handler(req, res) {
     return;
   }
 
-  // POST 提交评论
+  // ================= POST 提交评论 =================
   if (req.method === 'POST') {
-    const { postId, name, email, comment } = req.body;
+    const { postId, name, email, comment, parentId = '0' } = req.body;
     if (!postId || !name || !email || !comment) {
       return res.status(400).json({ error: '缺少必填字段' });
     }
 
     try {
       const commentsRef = ref(db, 'comments/' + postId);
+      const snapshot = await get(commentsRef);
+      let floor = 1;
+
+      if (snapshot.exists()) {
+        const comments = snapshot.val();
+        // 如果是子楼，floor 可以根据 parentId 计算
+        if (parentId === '0') {
+          // 初楼，floor 为当前已有初楼数量 +1
+          floor = Object.values(comments).filter(c => c.parentId === '0').length + 1;
+        } else {
+          // 子楼，floor 为已有子楼数量 +1
+          floor =
+            Object.values(comments).filter(c => c.parentId === parentId).length + 1;
+        }
+      }
+
       const newCommentRef = push(commentsRef);
       const data = {
         id: newCommentRef.key,
@@ -41,8 +57,11 @@ export default async function handler(req, res) {
         email,
         comment,
         date: Date.now(),
-        likes: 0
+        likes: 0,
+        parentId,
+        floor,
       };
+
       await set(newCommentRef, data);
       return res.status(200).json(data);
     } catch (error) {
@@ -51,7 +70,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // GET 加载评论
+  // ================= GET 加载评论 =================
   if (req.method === 'GET') {
     const { postId } = req.query;
     if (!postId) {
@@ -63,13 +82,21 @@ export default async function handler(req, res) {
       const snapshot = await get(commentsRef);
 
       if (!snapshot.exists()) {
-        return res.status(200).json([]); // 没有评论返回空数组
+        return res.status(200).json([]);
       }
 
       const comments = snapshot.val();
       const commentsList = Object.keys(comments)
         .map(key => comments[key])
-        .sort((a, b) => a.date - b.date); // 按日期升序
+        .sort((a, b) => {
+          // 先按父楼排序，再按日期排序
+          if (a.parentId === b.parentId) {
+            return a.date - b.date;
+          }
+          if (a.parentId === '0') return -1;
+          if (b.parentId === '0') return 1;
+          return a.date - b.date;
+        });
 
       return res.status(200).json(commentsList);
     } catch (error) {
