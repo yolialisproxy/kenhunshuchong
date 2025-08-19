@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
-import { initializeApp } from "firebase/app";
-import { getDatabase, ref, get, set } from "firebase/database";
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, set, get, update } from 'firebase/database';
+
 
 // =================== Firebase 初始化 ===================
 const firebaseConfig = {
