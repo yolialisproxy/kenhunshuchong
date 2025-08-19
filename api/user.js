@@ -16,16 +16,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-try {
-    const action = req.query.action;
-
-    // ===== 用户相关 =====
-    if (req.method === "POST" && action === "register") {
-      return await registerUserHandler(req, res);
-    }
-    if (req.method === "POST" && action === "login") {
-      return await loginUserHandler(req, res);
-}
 
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
@@ -97,5 +87,31 @@ export async function loginUserHandler(req, res) {
   } catch (err) {
     console.error("loginUserHandler error:", err);
     return res.status(500).json({ error: "服务器错误", details: err.message });
+  }
+}
+
+export default async function handler(req, res) {
+  // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  try {
+    const action = req.query.action;
+
+    // ===== 用户相关 =====
+    if (req.method === "POST" && action === "register") {
+      return await registerUserHandler(req, res);
+    }
+    if (req.method === "POST" && action === "login") {
+      return await loginUserHandler(req, res);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: '服务器错误', details: err.message });
   }
 }
