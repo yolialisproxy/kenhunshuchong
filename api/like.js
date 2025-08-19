@@ -1,22 +1,40 @@
-const admin = require("firebase-admin");
+import { initializeApp, getApps } from "firebase/app";
+import { getDatabase, ref, runTransaction } from "firebase/database";
 
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+// 避免重复初始化
+const firebaseConfig = {
+  apiKey: process.env.FIREBASE_API_KEY,
+  authDomain: process.env.FIREBASE_PROJECT_ID + ".firebaseapp.com",
+  databaseURL: "https://" + process.env.FIREBASE_PROJECT_ID + ".firebaseio.com",
+  projectId: process.env.FIREBASE_PROJECT_ID,
+};
+
+if (!getApps().length) {
+  initializeApp(firebaseConfig);
 }
 
-const db = admin.firestore();
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, message: "Method Not Allowed" });
+  }
 
-module.exports = async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  try {
+    const { commentId } = req.body;
+    if (!commentId) {
+      return res.status(400).json({ success: false, message: "缺少 commentId" });
+    }
 
-  const { commentId } = req.body;
-  if (!commentId) return res.status(400).json({ error: "commentId required" });
+    const db = getDatabase();
+    const commentRef = ref(db, "comments/" + commentId + "/likes");
 
-  const ref = db.collection("comments").doc(commentId);
-  await ref.update({ likes: admin.firestore.FieldValue.increment(1) });
-  const doc = await ref.get();
-  return res.status(200).json({ id: doc.id, ...doc.data() });
-};
+    // 原子操作，避免并发覆盖
+    await runTransaction(commentRef, (current) => {
+      return (current || 0) + 1;
+    });
+
+    res.status(200).json({ success: true, likes: (await (await import("firebase/database")).get(commentRef)).val() });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: "服务器错误" });
+  }
+}
