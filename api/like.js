@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, get, set, runTransaction, update } from 'firebase/database';
+import { getDatabase, ref, get, set, runTransaction } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -23,15 +23,12 @@ async function updateTotalLikes(postId, commentId) {
   const comment = snapshot.val();
   let total = comment.likes || 0;
 
-  // 遍历子楼 children 递归累加 totalLikes
   if (comment.children && comment.children.length > 0) {
     for (let childId of comment.children) {
-      const childTotal = await updateTotalLikes(postId, childId);
-      total += childTotal;
+      total += await updateTotalLikes(postId, childId);
     }
   }
 
-  // 更新当前楼的 totalLikes
   await set(ref(db, `comments/${postId}/${commentId}/totalLikes`), total);
 
   return total;
@@ -42,15 +39,17 @@ export async function likeComment(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
 
-  if (!snapshot.exists()) throw new Error('评论不存在');
+  if (!snapshot.exists()) {
+    const err = new Error('评论不存在');
+    err.code = 404;
+    throw err;
+  }
 
-  // 原子点赞
+  // 原子点赞（无悔 +1）
   await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
 
   // 更新 totalLikes
-  const totalLikes = await updateTotalLikes(postId, commentId);
-
-  return totalLikes;
+  return await updateTotalLikes(postId, commentId);
 }
 
 // ================== API Handler ==================
@@ -66,25 +65,29 @@ export default async function handler(req, res) {
 
   // 解析 req.body
   if (req.body && typeof req.body === 'object') {
-    postId = req.body.postId;
-    commentId = req.body.commentId;
+    ({ postId, commentId } = req.body);
   } else if (req.body && typeof req.body === 'string') {
     try {
-      const parsed = JSON.parse(req.body);
-      postId = parsed.postId;
-      commentId = parsed.commentId;
-    } catch (e) {
+      ({ postId, commentId } = JSON.parse(req.body));
+    } catch {
       return res.status(400).json({ success: false, message: "请求 body 无效" });
     }
   }
 
-  if (!postId || !commentId) return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
+  if (!postId || !commentId) {
+    return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
+  }
 
   try {
     const totalLikes = await likeComment(postId, commentId);
     return res.status(200).json({ success: true, totalLikes });
   } catch (error) {
     console.error('❌ 点赞错误:', error);
+
+    if (error.code === 404) {
+      return res.status(404).json({ success: false, message: "评论不存在" });
+    }
+
     return res.status(500).json({ success: false, message: "点赞失败", details: error.message });
   }
 }
