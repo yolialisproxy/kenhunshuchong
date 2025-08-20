@@ -15,6 +15,11 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export async function submitComment(req, res) {
+  // ================= CORS =================
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   const { postId, name, email, comment, parentId = '0' } = req.body;
   if (!postId || !name || !email || !comment ) {
     return res.status(400).json({ error: '缺少必填字段' });
