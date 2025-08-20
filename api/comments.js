@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update } from 'firebase/database';
+import { getDatabase, ref, push, set, get, update, query, orderByChild, equalTo } from 'firebase/database';
 import bcrypt from "bcryptjs";
 
 const firebaseConfig = {
@@ -122,7 +122,6 @@ export async function likeComment(req, res) {
 
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
-  // ================= CORS =================
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -134,15 +133,24 @@ export async function registerUserHandler(req, res) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    const userRef = ref(db, `users/` + username);
-    const snapshot = await get(userRef);
+    // 检查邮箱是否已注册
+    const usersRef = ref(db, "users/");
+    const emailQuery = query(usersRef, orderByChild("email"), equalTo(email));
+    const emailSnapshot = await get(emailQuery);
 
-    if (snapshot.exists()) {
+    if (emailSnapshot.exists()) {
+      return res.status(409).json({ error: "邮箱已被注册" });
+    }
+
+    // 检查用户名是否存在
+    const userRef = ref(db, `users/${username}`);
+    const userSnapshot = await get(userRef);
+    if (userSnapshot.exists()) {
       return res.status(409).json({ error: "用户名已存在" });
     }
 
+    // 创建用户
     const hashedPassword = await bcrypt.hash(password, 10);
-
     await set(userRef, {
       username,
       email,
@@ -156,6 +164,7 @@ export async function registerUserHandler(req, res) {
     return res.status(500).json({ error: "服务器错误", details: err.message });
   }
 }
+
 
 // =================== 用户登录 ===================
 export async function loginUserHandler(req, res) {
