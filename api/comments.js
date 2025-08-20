@@ -140,7 +140,7 @@ export async function registerUserHandler(req, res) {
     }
 
     // 1️⃣ 检查用户名是否存在
-    const userRef = ref(db, `users/${username}`);
+    const userRef = ref(db, `users/` + username );
     const snapshotUser = await get(userRef);
     if (snapshotUser.exists()) {
       return res.status(409).json({ error: "用户名已存在" });
