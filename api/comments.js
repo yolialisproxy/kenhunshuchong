@@ -127,11 +127,6 @@ export async function registerUserHandler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
   try {
     const { username, email, password } = req.body;
 
@@ -139,42 +134,40 @@ export async function registerUserHandler(req, res) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    // 1️⃣ 检查用户名是否存在
-    const userRef = ref(db, `users/` + username );
-    const snapshotUser = await get(userRef);
-    if (snapshotUser.exists()) {
-      return res.status(409).json({ error: "用户名已存在" });
-    }
-
-    // 2️⃣ 检查邮箱是否存在
     const usersRef = ref(db, 'users');
-    const emailQuery = ref(db, 'users');
-    const snapshotEmail = await get(usersRef);
-    const emailExists = snapshotEmail.exists() &&
-      Object.values(snapshotEmail.val()).some(u => u.email === email);
+    const snapshot = await get(usersRef);
 
-    if (emailExists) {
-      return res.status(409).json({ error: "该邮箱已被注册" });
+    // 检查用户名和邮箱是否已存在
+    if (snapshot.exists()) {
+      const allUsers = snapshot.val();
+      if (allUsers[username]) {
+        return res.status(409).json({ error: "用户名已存在" });
+      }
+      const emailExists = Object.values(allUsers).some(u => u.email === email);
+      if (emailExists) {
+        return res.status(409).json({ error: "该邮箱已被注册" });
+      }
     }
 
-    // 3️⃣ 哈希密码
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4️⃣ 保存用户
-    await set(userRef, {
+    await set(ref(db, `users/${username}`), {
       username,
       email,
       password: hashedPassword,
       createdAt: Date.now(),
     });
 
-    return res.status(200).json({ message: "注册成功", user: { username, email } });
-
+    return res.status(200).json({
+      message: "注册成功",
+      user: { username, email }
+    });
   } catch (err) {
     console.error("registerUserHandler error:", err);
     return res.status(500).json({ error: "服务器错误", details: err.message });
   }
 }
+
 
 
 
