@@ -14,49 +14,43 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ======================== 更新 totalLikes（当前 + 一级父） ========================
-async function updateTotalLikes(postId, commentId) {
+// ================== 点赞评论并更新 totalLikes（自己 + 父一级） ==================
+export async function likeComment(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
-  if (!snapshot.exists()) return 0;
+  if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
 
+  // 原子点赞
+  const transactionResult = await runTransaction(
+    ref(db, `comments/${postId}/${commentId}/likes`),
+    (current) => (current || 0) + 1
+  );
+  const newLikes = transactionResult.snapshot.val();
+
+  // 计算自己 totalLikes = 新的 likes + 所有子楼 likes
   const comment = snapshot.val();
-  const likes = comment.likes || 0;
-
-  // 如果有 children 数组，累加子楼的 likes
-  let total = likes;
+  let total = newLikes;
   if (comment.children && comment.children.length > 0) {
     for (let childId of comment.children) {
       const childSnap = await get(ref(db, `comments/${postId}/${childId}`));
-      if (childSnap.exists()) {
-        const child = childSnap.val();
-        total += child.likes || 0;
-      }
+      if (childSnap.exists()) total += childSnap.val().likes || 0;
     }
   }
-
-  // 更新当前楼 totalLikes
   await set(ref(db, `comments/${postId}/${commentId}/totalLikes`), total);
 
-  // 如果有一级父楼，也更新父楼 totalLikes
+  // 更新父一级 totalLikes
   if (comment.parentId && comment.parentId !== '0') {
     const parentRef = ref(db, `comments/${postId}/${comment.parentId}`);
     const parentSnap = await get(parentRef);
     if (parentSnap.exists()) {
       const parent = parentSnap.val();
       let parentTotal = parent.likes || 0;
-
-      // 父楼的 children 数组里每个子楼的 likes 累加
       if (parent.children && parent.children.length > 0) {
         for (let siblingId of parent.children) {
           const siblingSnap = await get(ref(db, `comments/${postId}/${siblingId}`));
-          if (siblingSnap.exists()) {
-            const sibling = siblingSnap.val();
-            parentTotal += sibling.likes || 0;
-          }
+          if (siblingSnap.exists()) parentTotal += siblingSnap.val().likes || 0;
         }
       }
-
       await set(ref(db, `comments/${postId}/${comment.parentId}/totalLikes`), parentTotal);
     }
   }
@@ -64,29 +58,9 @@ async function updateTotalLikes(postId, commentId) {
   return total;
 }
 
-// ================== 点赞评论 ==================
-export async function likeComment(postId, commentId) {
-  const commentRef = ref(db, `comments/${postId}/${commentId}`);
-  const snapshot = await get(commentRef);
-
-  if (!snapshot.exists()) {
-    // 🚨 幽灵点赞（评论不存在）
-    console.warn(`⚠️ 幽灵点赞: postId=${postId}, commentId=${commentId}`);
-    const err = new Error('评论不存在');
-    err.isGhostLike = true;
-    throw err;
-  }
-
-  // 原子点赞（无悔 +1）
-  await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
-
-  // 更新 totalLikes（自己 + 父一级）
-  return await updateTotalLikes(postId, commentId);
-}
-
 // ================== API Handler ==================
 export default async function handler(req, res) {
-  // ================= CORS =================
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -95,7 +69,6 @@ export default async function handler(req, res) {
 
   let postId, commentId;
 
-  // 解析 req.body
   if (req.body && typeof req.body === 'object') {
     ({ postId, commentId } = req.body);
   } else if (req.body && typeof req.body === 'string') {
