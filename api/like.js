@@ -14,53 +14,55 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ================== 点赞评论并更新 totalLikes（自己 + 父一级） ==================
+// ================== 递归计算 totalLikes ==================
+async function computeTotalLikes(postId, commentId) {
+  const commentRef = ref(db, `comments/${postId}/${commentId}`);
+  const snapshot = await get(commentRef);
+  if (!snapshot.exists()) return 0;
+
+  const comment = snapshot.val();
+  let total = comment.likes || 0;
+
+  if (comment.children && comment.children.length > 0) {
+    for (const childId of comment.children) {
+      total += await computeTotalLikes(postId, childId);
+    }
+  }
+
+  await set(ref(db, `comments/${postId}/${commentId}/totalLikes`), total);
+  return total;
+}
+
+// ================== 点赞评论 ==================
 export async function likeComment(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
 
   // 原子点赞
-  const transactionResult = await runTransaction(
-    ref(db, `comments/${postId}/${commentId}/likes`),
-    (current) => (current || 0) + 1
-  );
-  const newLikes = transactionResult.snapshot.val();
+  await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
 
-  // 计算自己 totalLikes = 新的 likes + 所有子楼 likes
-  const comment = snapshot.val();
-  let total = newLikes;
-  if (comment.children && comment.children.length > 0) {
-    for (let childId of comment.children) {
-      const childSnap = await get(ref(db, `comments/${postId}/${childId}`));
-      if (childSnap.exists()) total += childSnap.val().likes || 0;
-    }
-  }
-  await set(ref(db, `comments/${postId}/${commentId}/totalLikes`), total);
+  // 递归更新 totalLikes（包括自己和所有父节点）
+  async function updateAncestorsTotalLikes(currCommentId) {
+    const currSnapshot = await get(ref(db, `comments/${postId}/${currCommentId}`));
+    if (!currSnapshot.exists()) return;
 
-  // 更新父一级 totalLikes
-  if (comment.parentId && comment.parentId !== '0') {
-    const parentRef = ref(db, `comments/${postId}/${comment.parentId}`);
-    const parentSnap = await get(parentRef);
-    if (parentSnap.exists()) {
-      const parent = parentSnap.val();
-      let parentTotal = parent.likes || 0;
-      if (parent.children && parent.children.length > 0) {
-        for (let siblingId of parent.children) {
-          const siblingSnap = await get(ref(db, `comments/${postId}/${siblingId}`));
-          if (siblingSnap.exists()) parentTotal += siblingSnap.val().likes || 0;
-        }
-      }
-      await set(ref(db, `comments/${postId}/${comment.parentId}/totalLikes`), parentTotal);
+    await computeTotalLikes(postId, currCommentId);
+
+    const curr = currSnapshot.val();
+    if (curr.parentId && curr.parentId !== '0') {
+      await updateAncestorsTotalLikes(curr.parentId);
     }
   }
 
-  return total;
+  await updateAncestorsTotalLikes(commentId);
+
+  const updatedSnapshot = await get(commentRef);
+  return updatedSnapshot.val().totalLikes || 0;
 }
 
 // ================== API Handler ==================
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
