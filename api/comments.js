@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update, query } from 'firebase/database';
+import { getDatabase, ref, push, set, get, update } from 'firebase/database';
 
+// 🔹 Firebase 初始化
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
   authDomain: process.env.FIREBASE_AUTH_DOMAIN,
@@ -14,16 +15,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// ================== 提交评论 ==================
 export async function submitComment(req, res) {
-  // ================= CORS =================
+  // CORS 设置
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // 🔹 确保 body 被解析
+  // 🔹 解析 body
   const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
-  const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
+  const {
+    postId,
+    name,
+    email,
+    comment,
+    parentId = '0',
+    isGuest = true, // 🔹 默认游客
+  } = body;
 
   if (!postId || !name || !email || !comment) {
     return res.status(400).json({ error: '缺少必填字段' });
@@ -32,8 +41,8 @@ export async function submitComment(req, res) {
   try {
     const commentsRef = ref(db, 'comments/' + postId);
     const snapshot = await get(commentsRef);
-    let floor = 1;
 
+    let floor = 1;
     if (snapshot.exists()) {
       const comments = snapshot.val();
       if (parentId === '0') {
@@ -53,17 +62,18 @@ export async function submitComment(req, res) {
       likes: 0,
       parentId,
       floor,
-      isGuest, // 🔹 新增字段
+      isGuest, // 🔹 是否游客
     };
 
     await set(newCommentRef, data);
     return res.status(200).json(data);
   } catch (error) {
-    console.error(error);
+    console.error('❌ 提交评论错误:', error);
     return res.status(500).json({ error: '无法提交评论', details: error.message });
   }
 }
 
+// ================== 获取评论 ==================
 export async function getComments(req, res) {
   const { postId } = req.query;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
@@ -102,11 +112,12 @@ export async function getComments(req, res) {
     sortComments(tree);
     return res.status(200).json(tree);
   } catch (error) {
-    console.error(error);
+    console.error('❌ 获取评论错误:', error);
     return res.status(500).json({ error: '无法加载评论', details: error.message });
   }
 }
 
+// ================== 点赞评论 ==================
 export async function likeComment(req, res) {
   const { postId, commentId } = req.body;
   if (!postId || !commentId) return res.status(400).json({ error: '缺少 postId 或 commentId' });
@@ -123,13 +134,14 @@ export async function likeComment(req, res) {
 
     return res.status(200).json({ likes: newLikes });
   } catch (error) {
-    console.error(error);
+    console.error('❌ 点赞错误:', error);
     return res.status(500).json({ error: '点赞失败', details: error.message });
   }
 }
 
+// ================== API Handler ==================
 export default async function handler(req, res) {
-  // ================= CORS =================
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -141,7 +153,6 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      // 判断是否为点赞请求
       if (req.body.action === 'like') {
         return likeComment(req, res);
       } else {
@@ -154,7 +165,7 @@ export default async function handler(req, res) {
       return res.status(405).end(`Method ${req.method} Not Allowed`);
     }
   } catch (err) {
-    console.error(err);
+    console.error('❌ 服务器错误:', err);
     return res.status(500).json({ error: '服务器错误', details: err.message });
   }
 }
