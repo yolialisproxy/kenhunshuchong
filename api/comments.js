@@ -16,8 +16,8 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 export async function submitComment(req, res) {
-  const { postId, name, email, comment, parentId = '0' } = req.body;
-  if (!postId || !name || !email || !comment) {
+  const { postId, name, email, comment,isGuest, parentId = '0' } = req.body;
+  if (!postId || !name || !email || !comment || !isGuest ) {
     return res.status(400).json({ error: '缺少必填字段' });
   }
 
@@ -45,6 +45,7 @@ export async function submitComment(req, res) {
       likes: 0,
       parentId,
       floor,
+      isGuest,
     };
 
     await set(newCommentRef, data);
