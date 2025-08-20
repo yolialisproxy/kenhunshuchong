@@ -139,28 +139,28 @@ export async function registerUserHandler(req, res) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    // 先检查用户名是否存在
+    // 1️⃣ 检查用户名是否存在
     const userRef = ref(db, `users/${username}`);
     const snapshotUser = await get(userRef);
     if (snapshotUser.exists()) {
       return res.status(409).json({ error: "用户名已存在" });
     }
 
-    // 检查邮箱是否已经注册
-    const usersRef = ref(db, "users");
+    // 2️⃣ 检查邮箱是否存在
+    const usersRef = ref(db, 'users');
+    const emailQuery = ref(db, 'users');
     const snapshotEmail = await get(usersRef);
-    if (snapshotEmail.exists()) {
-      const users = snapshotEmail.val();
-      const emailExists = Object.values(users).some(u => u.email === email);
-      if (emailExists) {
-        return res.status(409).json({ error: "该邮箱已被注册" });
-      }
+    const emailExists = snapshotEmail.exists() &&
+      Object.values(snapshotEmail.val()).some(u => u.email === email);
+
+    if (emailExists) {
+      return res.status(409).json({ error: "该邮箱已被注册" });
     }
 
-    // 哈希密码
+    // 3️⃣ 哈希密码
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 保存新用户
+    // 4️⃣ 保存用户
     await set(userRef, {
       username,
       email,
@@ -169,11 +169,13 @@ export async function registerUserHandler(req, res) {
     });
 
     return res.status(200).json({ message: "注册成功", user: { username, email } });
+
   } catch (err) {
     console.error("registerUserHandler error:", err);
     return res.status(500).json({ error: "服务器错误", details: err.message });
   }
 }
+
 
 
 
