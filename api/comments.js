@@ -31,7 +31,7 @@ export async function submitComment(req, res) {
     email,
     comment,
     parentId = '0',
-    isGuest = true, // 🔹 默认游客
+    isGuest = true,
   } = body;
 
   if (!postId || !name || !email || !comment) {
@@ -62,7 +62,7 @@ export async function submitComment(req, res) {
       likes: 0,
       parentId,
       floor,
-      isGuest, // 🔹 是否游客
+      isGuest,
     };
 
     await set(newCommentRef, data);
@@ -153,7 +153,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
-      if (req.body.action === 'like') {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      if (body.action === 'like') {
         return likeComment(req, res);
       } else {
         return submitComment(req, res);
