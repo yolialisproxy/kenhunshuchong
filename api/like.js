@@ -40,8 +40,10 @@ export async function likeComment(postId, commentId) {
   const snapshot = await get(commentRef);
 
   if (!snapshot.exists()) {
+    // 🚨 幽灵点赞（评论不存在）
+    console.warn(`⚠️ 幽灵点赞: postId=${postId}, commentId=${commentId}`);
     const err = new Error('评论不存在');
-    err.code = 404;
+    err.isGhostLike = true; // 标记幽灵点赞
     throw err;
   }
 
@@ -84,10 +86,19 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ 点赞错误:', error);
 
-    if (error.code === 404) {
-      return res.status(404).json({ success: false, message: "评论不存在" });
+    if (error.isGhostLike) {
+      // 幽灵点赞（评论不存在）
+      return res.status(410).json({
+        success: false,
+        message: "评论不存在",
+        ghostLike: true
+      });
     }
 
-    return res.status(500).json({ success: false, message: "点赞失败", details: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "点赞失败",
+      details: error.message
+    });
   }
 }
