@@ -119,6 +119,11 @@ export async function getComments(req, res) {
 
 // ================== 点赞评论 ==================
 export async function likeComment(req, res) {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   const { postId, commentId } = req.body;
   if (!postId || !commentId) return res.status(400).json({ error: '缺少 postId 或 commentId' });
 
