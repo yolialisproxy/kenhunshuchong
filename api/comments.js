@@ -122,9 +122,15 @@ export async function likeComment(req, res) {
 
 // =================== 用户注册 ===================
 export async function registerUserHandler(req, res) {
+  // ================= CORS =================
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
   try {
     const { username, email, password } = req.body;
@@ -133,24 +139,28 @@ export async function registerUserHandler(req, res) {
       return res.status(400).json({ error: "缺少用户名、邮箱或密码" });
     }
 
-    // 检查邮箱是否已注册
-    const usersRef = ref(db, "users/");
-    const emailQuery = query(usersRef, orderByChild("email"), equalTo(email));
-    const emailSnapshot = await get(emailQuery);
-
-    if (emailSnapshot.exists()) {
-      return res.status(409).json({ error: "邮箱已被注册" });
-    }
-
-    // 检查用户名是否存在
+    // 先检查用户名是否存在
     const userRef = ref(db, `users/${username}`);
-    const userSnapshot = await get(userRef);
-    if (userSnapshot.exists()) {
+    const snapshotUser = await get(userRef);
+    if (snapshotUser.exists()) {
       return res.status(409).json({ error: "用户名已存在" });
     }
 
-    // 创建用户
+    // 检查邮箱是否已经注册
+    const usersRef = ref(db, "users");
+    const snapshotEmail = await get(usersRef);
+    if (snapshotEmail.exists()) {
+      const users = snapshotEmail.val();
+      const emailExists = Object.values(users).some(u => u.email === email);
+      if (emailExists) {
+        return res.status(409).json({ error: "该邮箱已被注册" });
+      }
+    }
+
+    // 哈希密码
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 保存新用户
     await set(userRef, {
       username,
       email,
@@ -158,12 +168,13 @@ export async function registerUserHandler(req, res) {
       createdAt: Date.now(),
     });
 
-    return res.status(200).json({ message: "注册成功" });
+    return res.status(200).json({ message: "注册成功", user: { username, email } });
   } catch (err) {
     console.error("registerUserHandler error:", err);
     return res.status(500).json({ error: "服务器错误", details: err.message });
   }
 }
+
 
 
 // =================== 用户登录 ===================
