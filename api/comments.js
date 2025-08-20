@@ -43,9 +43,9 @@ export async function submitComment(req, res) {
       comment,
       date: Date.now(),
       likes: 0,
+      isGuest,
       parentId,
       floor,
-      isGuest,
     };
 
     await set(newCommentRef, data);
