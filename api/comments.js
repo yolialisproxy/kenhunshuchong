@@ -20,8 +20,12 @@ export async function submitComment(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  const { postId, name, email, comment, parentId = '0' } = req.body;
-  if (!postId || !name || !email || !comment ) {
+  // 🔹 确保 body 被解析
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+
+  const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
+
+  if (!postId || !name || !email || !comment) {
     return res.status(400).json({ error: '缺少必填字段' });
   }
 
@@ -47,9 +51,9 @@ export async function submitComment(req, res) {
       comment,
       date: Date.now(),
       likes: 0,
-      isGuest,
       parentId,
       floor,
+      isGuest, // 🔹 新增字段
     };
 
     await set(newCommentRef, data);
