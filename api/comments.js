@@ -1,7 +1,10 @@
-import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS, withTimeout } from './utils.js';
-
-// 确认导入
-console.log('✅ comments.js导入utils.js成功');
+try {
+  import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS, withTimeout } from './utils.js';
+  console.log('✅ comments.js加载并导入utils.js成功');
+} catch (err) {
+  console.error('❌ comments.js导入utils.js失败:', err);
+  throw err;
+}
 
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {

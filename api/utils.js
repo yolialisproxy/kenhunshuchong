@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
 
-// 确认utils.js加载
+// 确认加载
 console.log('✅ utils.js加载成功');
 
 // env验证

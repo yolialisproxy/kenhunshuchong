@@ -1,8 +1,11 @@
-import { db, ref, set, get, parseBody, setCORS, withTimeout } from './utils.js';
-import bcrypt from 'bcryptjs';
-
-// 确认导入
-console.log('✅ user.js导入utils.js成功');
+try {
+  import { db, ref, set, get, parseBody, setCORS, withTimeout } from './utils.js';
+  import bcrypt from 'bcryptjs';
+  console.log('✅ user.js加载并导入utils.js成功');
+} catch (err) {
+  console.error('❌ user.js导入utils.js失败:', err);
+  throw err;
+}
 
 export async function registerUserHandler(req, res) {
   setCORS(res);

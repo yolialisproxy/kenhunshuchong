@@ -1,10 +1,16 @@
-import { submitComment, getComments, deleteComment, editComment } from './comments.js';
-import { registerUserHandler, loginUserHandler } from './user.js';
-import { likeComment } from './like.js';
-import { parseBody, setCORS } from './utils.js';
-
-// 确认导入
-console.log('✅ index.js导入utils.js/comments.js/like.js/user.js成功');
+try {
+  import { submitComment, getComments, deleteComment, editComment } from './comments.js';
+  console.log('✅ index.js导入comments.js成功');
+  import { registerUserHandler, loginUserHandler } from './user.js';
+  console.log('✅ index.js导入user.js成功');
+  import { likeComment } from './like.js';
+  console.log('✅ index.js导入like.js成功');
+  import { parseBody, setCORS } from './utils.js';
+  console.log('✅ index.js导入utils.js成功');
+} catch (err) {
+  console.error('❌ index.js导入失败:', err);
+  throw err;
+}
 
 export default async function handler(req, res) {
   setCORS(res);
