@@ -1,12 +1,8 @@
 import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS } from './utils';
 
-
-// 递归计算 totalLikes（优化：添加深度限止防溢出）
+// 递归计算 totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
-  if (depth > 50) { // 优化：防深树栈溢出
-    console.warn('⚠️ 递归深度超过50，停止');
-    return 0;
-  }
+  if (depth > 50) { console.warn('⚠️ 递归深度超过50'); return 0; }
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) return 0;
@@ -24,10 +20,9 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
   return total;
 }
 
-// 提交评论（优化：添加原子更新parent children）
+// submitComment (原子children更新)
 export async function submitComment(req, res) {
   setCORS(res);
-
   const body = await parseBody(req);
   const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
 
@@ -62,7 +57,6 @@ export async function submitComment(req, res) {
 
     await set(newCommentRef, data);
 
-    // 优化：原子添加 to parent children
     if (parentId !== '0') {
       const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
       await runTransaction(parentChildrenRef, (current) => {
@@ -80,11 +74,11 @@ export async function submitComment(req, res) {
   }
 }
 
-// 获取评论（无变，保持构建树逻辑）
+// getComments (修复CORS/body)
 export async function getComments(req, res) {
   setCORS(res);
-
-  const postId = req.query.postId;
+  const body = await parseBody(req);
+  const postId = body.postId || req.query.postId;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
   try {
@@ -94,7 +88,7 @@ export async function getComments(req, res) {
 
     const comments = snapshot.val();
     const commentMap = {};
-    Object.values(comments).forEach(c => { c.children = []; commentMap[c.id] = c; });
+    Object.values(comments).forEach(c => { c.children = c.children || []; commentMap[c.id] = c; });
 
     const tree = [];
     Object.values(commentMap).forEach(c => {
@@ -119,10 +113,9 @@ export async function getComments(req, res) {
   }
 }
 
-// 删除评论（优化：移除 from parent children，更新totalLikes）
+// deleteComment (原子children移除)
 export async function deleteComment(req, res) {
   setCORS(res);
-
   const body = await parseBody(req);
   const { postId, commentId, username } = body;
 
@@ -144,7 +137,6 @@ export async function deleteComment(req, res) {
 
     await remove(commentRef);
 
-    // 优化：移除 from parent children
     if (parentId !== '0') {
       const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
       await runTransaction(parentChildrenRef, (current) => {
@@ -163,10 +155,9 @@ export async function deleteComment(req, res) {
   }
 }
 
-// 编辑评论（无变）
+// editComment
 export async function editComment(req, res) {
   setCORS(res);
-
   const body = await parseBody(req);
   const { postId, commentId, comment } = body;
 
@@ -187,15 +178,13 @@ export async function editComment(req, res) {
   }
 }
 
-// API Handler
+// handler
 export default async function handler(req, res) {
   setCORS(res);
-
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
   }
-
   try {
     if (req.method === 'POST') return submitComment(req, res);
     else if (req.method === 'GET') return getComments(req, res);

@@ -1,7 +1,6 @@
 import { db, ref, get, update, runTransaction, parseBody, setCORS } from './utils';
 
-
-// 递归计算（优化：深度限止，从comments.js共享但这里复用）
+// 递归计算
 async function computeTotalLikes(postId, commentId, depth = 0) {
   if (depth > 50) {
     console.warn('⚠️ 递归深度超过50');
@@ -24,27 +23,14 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
   return total;
 }
 
-// 点赞（优化：共享compute，添加ghost check）
-export async function likeComment(req, res) {
-  setCORS(res);
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const body = await parseBody(req);
-  const { postId, commentId } = body;
-
-  if (!postId || !commentId) {
-    return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
-  }
-
+// 点赞
+export async function likeComment(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
 
-  // 原子点赞
   await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
 
-  // 更新祖先（优化：迭代而非递归更新，避免栈深）
   async function updateAncestorsTotalLikes(currCommentId) {
     let currentId = currCommentId;
     while (currentId !== '0') {
@@ -62,12 +48,21 @@ export async function likeComment(req, res) {
   return updatedSnapshot.val().totalLikes || 0;
 }
 
-// Handler
+// handler
 export default async function handler(req, res) {
   setCORS(res);
 
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const body = await parseBody(req);
+  const { postId, commentId } = body;
+
+  if (!postId || !commentId) {
+    return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
+  }
+
   try {
-    const totalLikes = await likeComment(req, res);
+    const totalLikes = await likeComment(postId, commentId);
     return res.status(200).json({ success: true, totalLikes });
   } catch (error) {
     console.error('❌ 点赞错误:', error);
