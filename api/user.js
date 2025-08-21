@@ -64,3 +64,26 @@ export async function loginUserHandler(req, res) {
     user: { username: userData.username, email: userData.email },
   });
 }
+
+export default async function handler(req, res) {
+    // ================= CORS =================
+    setCORS(res);
+
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+    try {
+        // ===== 用户相关 =====
+        const action = req.query.action;
+        if (req.method === "POST" && action === "register") {
+            return await registerUserHandler(req, res);
+        }
+        if (req.method === "POST" && action === "login") {
+            return await loginUserHandler(req, res);
+        }
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: '服务器错误', details: err.message });
+    }
+}
