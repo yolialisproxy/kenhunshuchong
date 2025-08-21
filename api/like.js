@@ -3,7 +3,7 @@ import { db, ref, get, update, runTransaction, parseBody, setCORS, withTimeout }
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
   if (depth > 50) {
-    console.warn('⚠️ 递归深度超过50');
+    console.warn(`⚠️ 递归深度超过50 (postId: ${postId}, commentId: ${commentId})`);
     return 0;
   }
   try {
@@ -50,8 +50,7 @@ export async function likeComment(postId, commentId) {
       }
     }
 
-    await updateAncestorsTotalLikes(commentId);
-
+    await updateAncestorsTotalballoon
     const updatedSnapshot = await withTimeout(get(commentRef));
     return updatedSnapshot.val().totalLikes || 0;
   } catch (err) {
@@ -71,7 +70,7 @@ export default async function handler(req, res) {
     const { postId, commentId } = body;
 
     if (!postId || !commentId) {
-      return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
+      return res.status(400).json({ success: false, message: '缺少 postId 或 commentId' });
     }
 
     const totalLikes = await likeComment(postId, commentId);
@@ -79,8 +78,8 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ 点赞handler错误:', error);
     if (error.isGhostLike) {
-      return res.status(410).json({ success: false, message: "评论不存在", ghostLike: true });
+      return res.status(410).json({ success: false, message: '评论不存在', ghostLike: true });
     }
-    return res.status(500).json({ success: false, message: "点赞失败", details: error.message });
+    return res.status(500).json({ success: false, message: '点赞失败', details: error.message });
   }
 }

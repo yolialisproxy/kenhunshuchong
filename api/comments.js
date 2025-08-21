@@ -2,7 +2,7 @@ import { db, ref, push, set, get, update, remove, runTransaction, parseBody, set
 
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
-  if (depth > 50) { console.warn('⚠️ 递归深度超过50'); return 0; }
+  if (depth > 50) { console.warn(`⚠️ 递归深度超过50 (postId: ${postId}, commentId: ${commentId})`); return 0; }
   try {
     const commentRef = ref(db(), `comments/${postId}/${commentId}`);
     const snapshot = await withTimeout(get(commentRef));
@@ -106,8 +106,8 @@ export async function getComments(req, res) {
     });
 
     function sortComments(arr) {
-      arr.sort((a,b) => a.floor - b.floor);
-      arr.forEach(c => { if (c.children.length>0) sortComments(c.children); });
+      arr.sort((a, b) => a.floor - b.floor);
+      arr.forEach(c => { if (c.children.length > 0) sortComments(c.children); });
     }
     sortComments(tree);
 
@@ -196,8 +196,8 @@ export default async function handler(req, res) {
     else if (req.method === 'DELETE') return deleteComment(req, res);
     else if (req.method === 'PUT') return editComment(req, res);
     else {
-      res.setHeader('Allow', ['GET','POST','PUT','DELETE','OPTIONS']);
-      return res.status(405).end(`Method ${req.method} Not Allowed`);
+      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
+      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
     }
   } catch (err) {
     console.error('❌ 服务器错误:', err);

@@ -6,6 +6,7 @@ function validateEnv() {
   const required = ['FIREBASE_API_KEY', 'FIREBASE_AUTH_DOMAIN', 'FIREBASE_DATABASE_URL', 'FIREBASE_PROJECT_ID', 'FIREBASE_STORAGE_BUCKET', 'FIREBASE_MESSAGING_SENDER_ID', 'FIREBASE_APP_ID'];
   const missing = required.filter(key => !process.env[key]);
   if (missing.length) {
+    console.error(`❌ 缺失env变量: ${missing.join(', ')}`);
     throw new Error(`缺失env变量: ${missing.join(', ')}`);
   }
 }
@@ -43,27 +44,27 @@ async function withTimeout(promise, ms = 5000) {
   return Promise.race([promise, timeout]);
 }
 
-// 统一 body 解析
+// body解析
 async function parseBody(req) {
   let body = req.body;
-  if (body && typeof body === "object") return body;
+  if (body && typeof body === 'object') return body;
 
   try {
-    if (req.headers["content-type"]?.includes("application/json")) {
-      return typeof body === "string" ? JSON.parse(body) : body;
+    if (req.headers['content-type']?.includes('application/json')) {
+      return typeof body === 'string' ? JSON.parse(body) : body;
     }
-    if (typeof body === "string") {
+    if (typeof body === 'string') {
       try { return JSON.parse(body); } catch {}
       return Object.fromEntries(new URLSearchParams(body));
     }
     return {};
   } catch (e) {
-    console.warn("⚠️ Body解析失败:", e);
+    console.warn('⚠️ Body解析失败:', e);
     return {};
   }
 }
 
-// 统一 CORS
+// CORS
 function setCORS(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
