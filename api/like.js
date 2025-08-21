@@ -14,9 +14,11 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
     const comment = snapshot.val();
     let total = comment.likes || 0;
 
-    if (comment.children && comment.children.length > 0) {
+    if (comment.children && Array.isArray(comment.children)) {
       for (const child of comment.children) {
-        total += await computeTotalLikes(postId, child.id, depth + 1);
+        const childTotal = await computeTotalLikes(postId, child.id, depth + 1);
+        await withTimeout(update(ref(initFirebase(), `comments/${postId}/${child.id}`), { totalLikes: childTotal }));
+        total += childTotal;
       }
     }
 
@@ -38,6 +40,9 @@ export async function likeComment(postId, commentId) {
 
     await withTimeout(runTransaction(ref(initFirebase(), `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1));
 
+    // 更新当前评论及祖先的 totalLikes
+    await computeTotalLikes(postId, commentId);
+
     async function updateAncestorsTotalLikes(currCommentId) {
       let currentId = currCommentId;
       while (currentId !== '0') {
@@ -52,7 +57,8 @@ export async function likeComment(postId, commentId) {
     await updateAncestorsTotalLikes(commentId);
 
     const updatedSnapshot = await withTimeout(get(commentRef));
-    return updatedSnapshot.val().totalLikes || 0;
+    const updatedComment = updatedSnapshot.val();
+    return { likes: updatedComment.likes || 0, totalLikes: updatedComment.totalLikes || 0 };
   } catch (err) {
     console.error(`❌ likeComment失败 (postId: ${postId}, commentId: ${commentId}):`, err);
     throw err;
@@ -72,8 +78,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: '缺少 postId 或 commentId' });
     }
 
-    const totalLikes = await likeComment(postId, commentId);
-    return res.status(200).json({ success: true, totalLikes });
+    const result = await likeComment(postId, commentId);
+    return res.status(200).json({ success: true, ...result });
   } catch (error) {
     console.error('❌ 点赞handler错误:', error);
     if (error.isGhostLike) {
