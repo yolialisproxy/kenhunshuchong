@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // 统一 body 解析（从 index.js 优化版）
-async function parseBody(req) {
+export async function parseBody(req) {
   let body = req.body;
   if (body && typeof body === "object") return body;
 
@@ -35,11 +35,10 @@ async function parseBody(req) {
 }
 
 // 统一 CORS 设置
-function setCORS(res) {
+export async function setCORS(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  return res;
 }
 
-export { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS };
+export { db, ref, push, set, get, update, remove, runTransaction };

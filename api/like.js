@@ -1,11 +1,5 @@
-import { db, ref, get, update, runTransaction, parseBody } from './utils';
+import { db, ref, get, update, runTransaction, parseBody, setCORS } from './utils';
 
-// 统一 CORS 设置
-async function setCORS(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-}
 
 // 递归计算（优化：深度限止，从comments.js共享但这里复用）
 async function computeTotalLikes(postId, commentId, depth = 0) {
