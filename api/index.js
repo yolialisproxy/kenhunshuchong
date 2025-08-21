@@ -1,7 +1,7 @@
 import { submitComment, getComments, deleteComment, editComment } from "./comments";
 import { registerUserHandler, loginUserHandler } from "./user";
 import likeHandler from "./like";
-import { parseBody, setCORS } from "./utils";
+import { parseBody, setCORS } from "./utils.js";
 
 export default async function handler(req, res) {
   setCORS(res);

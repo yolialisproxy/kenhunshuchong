@@ -1,4 +1,4 @@
-import { db, ref, set, get, parseBody, setCORS } from './utils';
+import { db, ref, set, get, parseBody, setCORS } from './utils.js';
 import bcrypt from "bcryptjs";
 
 

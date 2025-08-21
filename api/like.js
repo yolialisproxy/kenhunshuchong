@@ -1,4 +1,4 @@
-import { db, ref, get, update, runTransaction, parseBody, setCORS, withTimeout } from './utils';
+import { db, ref, get, update, runTransaction, parseBody, setCORS, withTimeout } from './utils.js';
 
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
