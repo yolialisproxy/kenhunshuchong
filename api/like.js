@@ -1,5 +1,8 @@
 import { db, ref, get, update, runTransaction, parseBody, setCORS, withTimeout } from './utils.js';
 
+// 确认导入
+console.log('✅ like.js导入utils.js成功');
+
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
   if (depth > 50) {
@@ -50,7 +53,8 @@ export async function likeComment(postId, commentId) {
       }
     }
 
-    await updateAncestorsTotalballoon
+    await updateAncestorsTotalLikes(commentId);
+
     const updatedSnapshot = await withTimeout(get(commentRef));
     return updatedSnapshot.val().totalLikes || 0;
   } catch (err) {

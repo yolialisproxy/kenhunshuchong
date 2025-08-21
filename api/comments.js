@@ -1,5 +1,8 @@
 import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS, withTimeout } from './utils.js';
 
+// 确认导入
+console.log('✅ comments.js导入utils.js成功');
+
 // 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
   if (depth > 50) { console.warn(`⚠️ 递归深度超过50 (postId: ${postId}, commentId: ${commentId})`); return 0; }

@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
 
+// 确认utils.js加载
+console.log('✅ utils.js加载成功');
+
 // env验证
 function validateEnv() {
   const required = ['FIREBASE_API_KEY', 'FIREBASE_AUTH_DOMAIN', 'FIREBASE_DATABASE_URL', 'FIREBASE_PROJECT_ID', 'FIREBASE_STORAGE_BUCKET', 'FIREBASE_MESSAGING_SENDER_ID', 'FIREBASE_APP_ID'];
