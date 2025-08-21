@@ -1,26 +1,31 @@
-import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS } from './utils';
+import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS, withTimeout } from './utils';
 
-// 递归计算 totalLikes
+// 递归计算totalLikes
 async function computeTotalLikes(postId, commentId, depth = 0) {
   if (depth > 50) { console.warn('⚠️ 递归深度超过50'); return 0; }
-  const commentRef = ref(db, `comments/${postId}/${commentId}`);
-  const snapshot = await get(commentRef);
-  if (!snapshot.exists()) return 0;
+  try {
+    const commentRef = ref(db(), `comments/${postId}/${commentId}`);
+    const snapshot = await withTimeout(get(commentRef));
+    if (!snapshot.exists()) return 0;
 
-  const comment = snapshot.val();
-  let total = comment.likes || 0;
+    const comment = snapshot.val();
+    let total = comment.likes || 0;
 
-  if (comment.children && comment.children.length > 0) {
-    for (const child of comment.children) {
-      total += await computeTotalLikes(postId, child.id, depth + 1);
+    if (comment.children && comment.children.length > 0) {
+      for (const child of comment.children) {
+        total += await computeTotalLikes(postId, child.id, depth + 1);
+      }
     }
-  }
 
-  await update(commentRef, { totalLikes: total });
-  return total;
+    await withTimeout(update(commentRef, { totalLikes: total }));
+    return total;
+  } catch (err) {
+    console.error(`❌ computeTotalLikes失败 (postId: ${postId}, commentId: ${commentId}):`, err);
+    throw err;
+  }
 }
 
-// submitComment (原子children更新)
+// 提交评论
 export async function submitComment(req, res) {
   setCORS(res);
   const body = await parseBody(req);
@@ -31,8 +36,8 @@ export async function submitComment(req, res) {
   }
 
   try {
-    const commentsRef = ref(db, `comments/${postId}`);
-    const snapshot = await get(commentsRef);
+    const commentsRef = ref(db(), `comments/${postId}`);
+    const snapshot = await withTimeout(get(commentsRef));
 
     let floor = 1;
     if (snapshot.exists()) {
@@ -55,15 +60,15 @@ export async function submitComment(req, res) {
       children: [],
     };
 
-    await set(newCommentRef, data);
+    await withTimeout(set(newCommentRef, data));
 
     if (parentId !== '0') {
-      const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
-      await runTransaction(parentChildrenRef, (current) => {
+      const parentChildrenRef = ref(db(), `comments/${postId}/${parentId}/children`);
+      await withTimeout(runTransaction(parentChildrenRef, (current) => {
         if (!current) current = [];
         current.push({ id: newCommentRef.key });
         return current;
-      });
+      }));
       await computeTotalLikes(postId, parentId);
     }
 
@@ -74,7 +79,7 @@ export async function submitComment(req, res) {
   }
 }
 
-// getComments (修复CORS/body)
+// 获取评论
 export async function getComments(req, res) {
   setCORS(res);
   const body = await parseBody(req);
@@ -82,8 +87,8 @@ export async function getComments(req, res) {
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
   try {
-    const commentsRef = ref(db, `comments/${postId}`);
-    const snapshot = await get(commentsRef);
+    const commentsRef = ref(db(), `comments/${postId}`);
+    const snapshot = await withTimeout(get(commentsRef));
     if (!snapshot.exists()) return res.status(200).json([]);
 
     const comments = snapshot.val();
@@ -113,7 +118,7 @@ export async function getComments(req, res) {
   }
 }
 
-// deleteComment (原子children移除)
+// 删除评论
 export async function deleteComment(req, res) {
   setCORS(res);
   const body = await parseBody(req);
@@ -128,23 +133,23 @@ export async function deleteComment(req, res) {
   }
 
   try {
-    const commentRef = ref(db, `comments/${postId}/${commentId}`);
-    const snapshot = await get(commentRef);
+    const commentRef = ref(db(), `comments/${postId}/${commentId}`);
+    const snapshot = await withTimeout(get(commentRef));
     if (!snapshot.exists()) return res.status(404).json({ error: '评论不存在' });
 
     const comment = snapshot.val();
     const parentId = comment.parentId;
 
-    await remove(commentRef);
+    await withTimeout(remove(commentRef));
 
     if (parentId !== '0') {
-      const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
-      await runTransaction(parentChildrenRef, (current) => {
+      const parentChildrenRef = ref(db(), `comments/${postId}/${parentId}/children`);
+      await withTimeout(runTransaction(parentChildrenRef, (current) => {
         if (current) {
           return current.filter(child => child.id !== commentId);
         }
         return current;
-      });
+      }));
       await computeTotalLikes(postId, parentId);
     }
 
@@ -155,7 +160,7 @@ export async function deleteComment(req, res) {
   }
 }
 
-// editComment
+// 编辑评论
 export async function editComment(req, res) {
   setCORS(res);
   const body = await parseBody(req);
@@ -166,11 +171,11 @@ export async function editComment(req, res) {
   }
 
   try {
-    const commentRef = ref(db, `comments/${postId}/${commentId}`);
-    const snapshot = await get(commentRef);
+    const commentRef = ref(db(), `comments/${postId}/${commentId}`);
+    const snapshot = await withTimeout(get(commentRef));
     if (!snapshot.exists()) return res.status(404).json({ error: '评论不存在' });
 
-    await update(commentRef, { comment });
+    await withTimeout(update(commentRef, { comment }));
     return res.status(200).json({ message: '编辑成功' });
   } catch (err) {
     console.error('❌ 编辑评论错误:', err);
