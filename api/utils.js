@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAnalytics } from "firebase/analytics";
 import { getDatabase, ref, push, set, get, update, remove, query } from 'firebase/database';
 
 
@@ -13,6 +14,7 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 const db = getDatabase(app);
 
 // 统一 body 解析（从 index.js 优化版）
@@ -42,4 +44,4 @@ export async function setCORS(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-export { db, ref, push, set, get, update, remove, query };
+export { db, analytics, ref, push, set, get, update, remove, query };
