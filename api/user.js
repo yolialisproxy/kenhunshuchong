@@ -39,6 +39,7 @@ export async function registerUserHandler(req, res) {
 
 export async function loginUserHandler(req, res) {
   setCORS(res);
+  req.body = await parseBody(req);
   const { username, password } = req.body;
 
   if (!username || !password) {
