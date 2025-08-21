@@ -83,8 +83,7 @@ export async function submitComment(req, res) {
 export async function getComments(req, res) {
   setCORS(res);
 
-  const body = await parseBody(req);
-  const { postId } = req.query || body;
+  const postId = req.query.postId;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
   try {
