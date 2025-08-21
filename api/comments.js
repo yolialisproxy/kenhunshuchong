@@ -81,6 +81,8 @@ export async function submitComment(req, res) {
 
 // 获取评论（无变，保持构建树逻辑）
 export async function getComments(req, res) {
+  setCORS(res);
+
   const { postId } = req.query;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
 
