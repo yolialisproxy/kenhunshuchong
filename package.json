@@ -3,13 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "engines": {
-    "node": "20.x",
+    "node": "20.x"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "firebase": "^10",
+    "firebase": "^10"
   },
   "scripts": {
-    "start": "node api/index.js",
+    "start": "node api/index.js"
   }
 }
