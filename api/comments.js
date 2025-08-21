@@ -25,7 +25,7 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 
 // 提交评论（优化：添加原子更新parent children）
 export async function submitComment(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const body = await parseBody(req);
   const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
@@ -81,7 +81,7 @@ export async function submitComment(req, res) {
 
 // 获取评论（无变，保持构建树逻辑）
 export async function getComments(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const postId = req.query.postId;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
@@ -120,7 +120,7 @@ export async function getComments(req, res) {
 
 // 删除评论（优化：移除 from parent children，更新totalLikes）
 export async function deleteComment(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, username } = body;
@@ -164,7 +164,7 @@ export async function deleteComment(req, res) {
 
 // 编辑评论（无变）
 export async function editComment(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, comment } = body;
@@ -188,7 +188,7 @@ export async function editComment(req, res) {
 
 // API Handler
 export default async function handler(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();

@@ -5,7 +5,7 @@ import { parseBody, setCORS } from "./utils";
 
 // Handler（优化：统一CORS和parseBody）
 export default async function handler(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   if (req.method === "OPTIONS") {
     res.status(200).end();

@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 
 // 注册（优化：添加密码强度检查可选）
 export async function registerUserHandler(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const { username, email, password } = req.body;
 
@@ -37,7 +37,7 @@ export async function registerUserHandler(req, res) {
 
 // 登录（无变）
 export async function loginUserHandler(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   const { username, password } = req.body;
 
@@ -67,7 +67,7 @@ export async function loginUserHandler(req, res) {
 
 export default async function handler(req, res) {
     // ================= CORS =================
-    setCORS(res);
+    res = setCORS(res);
 
     if (req.method === 'OPTIONS') {
         res.status(200).end();

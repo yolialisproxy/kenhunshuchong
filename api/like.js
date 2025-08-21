@@ -25,7 +25,7 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 
 // 点赞（优化：共享compute，添加ghost check）
 export async function likeComment(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -63,7 +63,7 @@ export async function likeComment(req, res) {
 
 // Handler
 export default async function handler(req, res) {
-  setCORS(res);
+  res = setCORS(res);
 
   try {
     const totalLikes = await likeComment(req, res);
