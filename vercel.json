@@ -6,12 +6,6 @@
       "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "api/comments.js": { "memory": 1024, "maxDuration": 10 },
-    "api/index.js": { "memory": 1024, "maxDuration": 10 },
-    "api/like.js": { "memory": 1024, "maxDuration": 10 },
-    "api/user.js": { "memory": 1024, "maxDuration": 10 }
-  },
   "routes": [
     { "src": "/api/comments", "dest": "/api/comments.js" },
     { "src": "/api/like", "dest": "/api/like.js" },
