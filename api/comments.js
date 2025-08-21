@@ -1,38 +1,11 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
+import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS } from './utils';
 
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-
-// ================== 智能 body 解析 ==================
-async function parseBody(req) {
-  let body = req.body;
-  if (body && typeof body === "object") return body;
-
-  try {
-    if (typeof body === "string") {
-      try { return JSON.parse(body); } catch {}
-      return Object.fromEntries(new URLSearchParams(body));
-    }
-    return {};
-  } catch (e) {
-    console.warn("⚠️ Body 解析失败:", e);
-    return {};
+// 递归计算 totalLikes（优化：添加深度限止防溢出）
+async function computeTotalLikes(postId, commentId, depth = 0) {
+  if (depth > 50) { // 优化：防深树栈溢出
+    console.warn('⚠️ 递归深度超过50，停止');
+    return 0;
   }
-}
-
-// ================== 递归计算 totalLikes ==================
-async function computeTotalLikes(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) return 0;
@@ -42,7 +15,7 @@ async function computeTotalLikes(postId, commentId) {
 
   if (comment.children && comment.children.length > 0) {
     for (const child of comment.children) {
-      total += await computeTotalLikes(postId, child.id);
+      total += await computeTotalLikes(postId, child.id, depth + 1);
     }
   }
 
@@ -50,11 +23,9 @@ async function computeTotalLikes(postId, commentId) {
   return total;
 }
 
-// ================== 提交评论 ==================
+// 提交评论（优化：添加原子更新parent children）
 export async function submitComment(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
@@ -90,8 +61,16 @@ export async function submitComment(req, res) {
 
     await set(newCommentRef, data);
 
-    // 如果有父评论，需要更新父评论 totalLikes
-    if (parentId !== '0') await computeTotalLikes(postId, parentId);
+    // 优化：原子添加 to parent children
+    if (parentId !== '0') {
+      const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
+      await runTransaction(parentChildrenRef, (current) => {
+        if (!current) current = [];
+        current.push({ id: newCommentRef.key });
+        return current;
+      });
+      await computeTotalLikes(postId, parentId);
+    }
 
     return res.status(200).json(data);
   } catch (err) {
@@ -100,7 +79,7 @@ export async function submitComment(req, res) {
   }
 }
 
-// ================== 获取评论 ==================
+// 获取评论（无变，保持构建树逻辑）
 export async function getComments(req, res) {
   const { postId } = req.query;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
@@ -137,11 +116,9 @@ export async function getComments(req, res) {
   }
 }
 
-// ================== 删除评论（管理员权限） ==================
+// 删除评论（优化：移除 from parent children，更新totalLikes）
 export async function deleteComment(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, username } = body;
@@ -159,7 +136,23 @@ export async function deleteComment(req, res) {
     const snapshot = await get(commentRef);
     if (!snapshot.exists()) return res.status(404).json({ error: '评论不存在' });
 
+    const comment = snapshot.val();
+    const parentId = comment.parentId;
+
     await remove(commentRef);
+
+    // 优化：移除 from parent children
+    if (parentId !== '0') {
+      const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
+      await runTransaction(parentChildrenRef, (current) => {
+        if (current) {
+          return current.filter(child => child.id !== commentId);
+        }
+        return current;
+      });
+      await computeTotalLikes(postId, parentId);
+    }
+
     return res.status(200).json({ message: '删除成功' });
   } catch (err) {
     console.error('❌ 删除评论错误:', err);
@@ -167,11 +160,9 @@ export async function deleteComment(req, res) {
   }
 }
 
-// ================== 编辑评论 ==================
+// 编辑评论（无变）
 export async function editComment(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, comment } = body;
@@ -193,11 +184,9 @@ export async function editComment(req, res) {
   }
 }
 
-// ================== API Handler ==================
+// API Handler
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCORS(res);
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
