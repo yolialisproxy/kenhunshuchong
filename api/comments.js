@@ -1,4 +1,11 @@
-import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS } from './utils';
+import { db, ref, push, set, get, update, remove, runTransaction, parseBody } from './utils';
+
+// 统一 CORS 设置
+async function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 // 递归计算 totalLikes（优化：添加深度限止防溢出）
 async function computeTotalLikes(postId, commentId, depth = 0) {
@@ -25,7 +32,7 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 
 // 提交评论（优化：添加原子更新parent children）
 export async function submitComment(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, name, email, comment, parentId = '0', isGuest = true } = body;
@@ -81,7 +88,7 @@ export async function submitComment(req, res) {
 
 // 获取评论（无变，保持构建树逻辑）
 export async function getComments(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   const postId = req.query.postId;
   if (!postId) return res.status(400).json({ error: '缺少 postId 参数' });
@@ -120,7 +127,7 @@ export async function getComments(req, res) {
 
 // 删除评论（优化：移除 from parent children，更新totalLikes）
 export async function deleteComment(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, username } = body;
@@ -164,7 +171,7 @@ export async function deleteComment(req, res) {
 
 // 编辑评论（无变）
 export async function editComment(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   const body = await parseBody(req);
   const { postId, commentId, comment } = body;
@@ -188,7 +195,7 @@ export async function editComment(req, res) {
 
 // API Handler
 export default async function handler(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();

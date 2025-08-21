@@ -1,11 +1,18 @@
 import { submitComment, getComments, deleteComment, editComment } from "./comments";
 import { registerUserHandler, loginUserHandler } from "./user";
 import likeHandler from "./like";
-import { parseBody, setCORS } from "./utils";
+import { parseBody } from "./utils";
+
+// 统一 CORS 设置
+async function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 // Handler（优化：统一CORS和parseBody）
 export default async function handler(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   if (req.method === "OPTIONS") {
     res.status(200).end();

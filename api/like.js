@@ -1,4 +1,11 @@
-import { db, ref, get, update, runTransaction, parseBody, setCORS } from './utils';
+import { db, ref, get, update, runTransaction, parseBody } from './utils';
+
+// 统一 CORS 设置
+async function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 // 递归计算（优化：深度限止，从comments.js共享但这里复用）
 async function computeTotalLikes(postId, commentId, depth = 0) {
@@ -25,7 +32,7 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 
 // 点赞（优化：共享compute，添加ghost check）
 export async function likeComment(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -63,7 +70,7 @@ export async function likeComment(req, res) {
 
 // Handler
 export default async function handler(req, res) {
-  res = setCORS(res);
+  setCORS(res);
 
   try {
     const totalLikes = await likeComment(req, res);
