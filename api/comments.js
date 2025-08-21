@@ -160,4 +160,63 @@ export async function deleteComment(req, res) {
 
     await withTimeout(remove(commentRef));
 
-    if (parentId
+    if (parentId !== '0') {
+      const parentChildrenRef = ref(initFirebase(), `comments/${postId}/${parentId}/children`);
+      await withTimeout(runTransaction(parentChildrenRef, (current) => {
+        if (current) {
+          return current.filter(child => child.id !== commentId);
+        }
+        return current;
+      }));
+      await computeTotalLikes(postId, parentId);
+    }
+
+    return res.status(200).json({ message: '删除成功' });
+  } catch (err) {
+    console.error('❌ 删除评论错误:', err);
+    return res.status(500).json({ error: '删除失败', details: err.message });
+  }
+}
+
+export async function editComment(req, res) {
+  setCORS(res);
+  const body = await parseBody(req);
+  const { postId, commentId, comment } = body;
+
+  if (!postId || !commentId || !comment) {
+    return res.status(400).json({ error: '缺少必要参数' });
+  }
+
+  try {
+    const commentRef = ref(initFirebase(), `comments/${postId}/${commentId}`);
+    const snapshot = await withTimeout(get(commentRef));
+    if (!snapshot.exists()) return res.status(404).json({ error: '评论不存在' });
+
+    await withTimeout(update(commentRef, { comment }));
+    return res.status(200).json({ message: '编辑成功' });
+  } catch (err) {
+    console.error('❌ 编辑评论错误:', err);
+    return res.status(500).json({ error: '编辑失败', details: err.message });
+  }
+}
+
+export default async function handler(req, res) {
+  setCORS(res);
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+  try {
+    if (req.method === 'POST') return await submitComment(req, res);
+    else if (req.method === 'GET') return await getComments(req, res);
+    else if (req.method === 'DELETE') return await deleteComment(req, res);
+    else if (req.method === 'PUT') return await editComment(req, res);
+    else {
+      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']);
+      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    }
+  } catch (err) {
+    console.error('❌ 服务器错误:', err);
+    return res.status(500).json({ error: '服务器错误', details: err.message });
+  }
+}
