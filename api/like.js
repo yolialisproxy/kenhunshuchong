@@ -14,6 +14,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// ================== 智能 body 解析 ==================
+async function parseBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (req.body && typeof req.body === 'string') {
+    try { return JSON.parse(req.body); } catch {}
+    try { return Object.fromEntries(new URLSearchParams(req.body)); } catch {}
+  }
+  return {};
+}
+
 // ================== 递归计算 totalLikes ==================
 async function computeTotalLikes(postId, commentId) {
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
@@ -24,8 +34,8 @@ async function computeTotalLikes(postId, commentId) {
   let total = comment.likes || 0;
 
   if (comment.children && comment.children.length > 0) {
-    for (const childId of comment.children) {
-      total += await computeTotalLikes(postId, childId);
+    for (const child of comment.children) {
+      total += await computeTotalLikes(postId, child.id);
     }
   }
 
@@ -69,17 +79,8 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  let postId, commentId;
-
-  if (req.body && typeof req.body === 'object') {
-    ({ postId, commentId } = req.body);
-  } else if (req.body && typeof req.body === 'string') {
-    try {
-      ({ postId, commentId } = JSON.parse(req.body));
-    } catch {
-      return res.status(400).json({ success: false, message: "请求 body 无效" });
-    }
-  }
+  const body = await parseBody(req);
+  const { postId, commentId } = body;
 
   if (!postId || !commentId) {
     return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
