@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
+import { getDatabase, ref, push, set, get, update, remove, query } from 'firebase/database';
+
 
 const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY,
@@ -41,4 +42,4 @@ export async function setCORS(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-export { db, ref, push, set, get, update, remove, runTransaction };
+export { db, ref, push, set, get, update, remove, query };
