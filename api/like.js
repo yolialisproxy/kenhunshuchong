@@ -1,4 +1,4 @@
-import { db, ref, get, update, query, parseBody, setCORS } from './utils';
+import { db, ref, get, update, runTransaction, parseBody, setCORS } from './utils';
 
 
 // 递归计算（优化：深度限止，从comments.js共享但这里复用）
@@ -42,7 +42,7 @@ export async function likeComment(req, res) {
   if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
 
   // 原子点赞
-  //await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
+  await runTransaction(ref(db, `comments/${postId}/${commentId}/likes`), (current) => (current || 0) + 1);
 
   // 更新祖先（优化：迭代而非递归更新，避免栈深）
   async function updateAncestorsTotalLikes(currCommentId) {

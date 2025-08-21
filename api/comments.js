@@ -1,4 +1,4 @@
-import { db, ref, push, set, get, update, remove, parseBody, setCORS } from './utils';
+import { db, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS } from './utils';
 
 
 // 递归计算 totalLikes（优化：添加深度限止防溢出）
@@ -65,11 +65,11 @@ export async function submitComment(req, res) {
     // 优化：原子添加 to parent children
     if (parentId !== '0') {
       const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
-      // await runTransaction(parentChildrenRef, (current) => {
-      //   if (!current) current = [];
-      //   current.push({ id: newCommentRef.key });
-      //   return current;
-      // });
+      await runTransaction(parentChildrenRef, (current) => {
+        if (!current) current = [];
+        current.push({ id: newCommentRef.key });
+        return current;
+      });
       await computeTotalLikes(postId, parentId);
     }
 
@@ -147,12 +147,12 @@ export async function deleteComment(req, res) {
     // 优化：移除 from parent children
     if (parentId !== '0') {
       const parentChildrenRef = ref(db, `comments/${postId}/${parentId}/children`);
-      // await runTransaction(parentChildrenRef, (current) => {
-      //   if (current) {
-      //     return current.filter(child => child.id !== commentId);
-      //   }
-      //   return current;
-      // });
+      await runTransaction(parentChildrenRef, (current) => {
+        if (current) {
+          return current.filter(child => child.id !== commentId);
+        }
+        return current;
+      });
       await computeTotalLikes(postId, parentId);
     }
 

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAnalytics } from "firebase/analytics";
-import { getDatabase, ref, push, set, get, update, remove, query } from 'firebase/database';
+import { getDatabase, ref, push, set, get, update, remove, query, runTransaction } from 'firebase/database';
 
 
 const firebaseConfig = {
@@ -44,4 +44,4 @@ export async function setCORS(res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-export { db, analytics, ref, push, set, get, update, remove, query };
+export { db, analytics, ref, push, set, get, update, remove, query, runTransaction };
