@@ -25,8 +25,6 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 
 // 点赞（优化：共享compute，添加ghost check）
 export async function likeComment(postId, commentId) {
-  setCORS(res);
-
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
