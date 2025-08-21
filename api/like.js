@@ -24,7 +24,18 @@ async function computeTotalLikes(postId, commentId, depth = 0) {
 }
 
 // 点赞（优化：共享compute，添加ghost check）
-export async function likeComment(postId, commentId) {
+export async function likeComment(req, res) {
+  setCORS(res);
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const body = await parseBody(req);
+  const { postId, commentId } = body;
+
+  if (!postId || !commentId) {
+    return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
+  }
+
   const commentRef = ref(db, `comments/${postId}/${commentId}`);
   const snapshot = await get(commentRef);
   if (!snapshot.exists()) throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
@@ -54,17 +65,8 @@ export async function likeComment(postId, commentId) {
 export default async function handler(req, res) {
   setCORS(res);
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-
-  const body = await parseBody(req);
-  const { postId, commentId } = body;
-
-  if (!postId || !commentId) {
-    return res.status(400).json({ success: false, message: "缺少 postId 或 commentId" });
-  }
-
   try {
-    const totalLikes = await likeComment(postId, commentId);
+    const totalLikes = await likeComment(req, res);
     return res.status(200).json({ success: true, totalLikes });
   } catch (error) {
     console.error('❌ 点赞错误:', error);
