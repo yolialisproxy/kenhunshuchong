@@ -11,5 +11,5 @@
     { "src": "/api/like", "dest": "/api/like.js" },
     { "src": "/api/user", "dest": "/api/user.js" },
     { "src": "/api/(.*)", "dest": "/api/index.js" }
-  ],
+  ]
 }
