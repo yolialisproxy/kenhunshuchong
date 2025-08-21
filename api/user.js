@@ -1,5 +1,12 @@
-import { db, ref, set, get, parseBody, setCORS } from './utils';
+import { db, ref, set, get, parseBody } from './utils';
 import bcrypt from "bcryptjs";
+
+// 统一 CORS 设置
+function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 // 注册（优化：添加密码强度检查可选）
 export async function registerUserHandler(req, res) {
