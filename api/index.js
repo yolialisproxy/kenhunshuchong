@@ -1,64 +1,51 @@
-// api/index.js - Vercel Serverless Functions 的总入口点，负责精确路由分发
+// api/index.js - 优化版：添加缓存头，统一JS
 
-// 导入各个业务模块的默认 API 接口处理器
 import { likeApiHandler } from '../lib/likes.js';
 import { userApiHandler } from '../lib/users.js';
 import { commentApiHandler } from '../lib/comments.js';
-import { setCORS, logger } from '../lib/utils.js'; // 导入通用 CORS 设置
+import { setCORS, logger } from '../lib/utils.js';
 
 console.log('✅ api/index.js加载成功');
 
-/**
- * Vercel Serverless Function 的主处理函数
- * 根据请求的精确路径分发到不同的业务模块处理器
- */
+const routes = {
+  '/api/comments': commentApiHandler,
+  '/api/likes': likeApiHandler,
+  '/api/users': userApiHandler,
+};
+
+const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
+
 export default async function handler(req, res) {
   setCORS(res, req);
 
-  const url = new URL(req.url || '', `http://${req.headers.get('host')}`);
-  const pathname = url.pathname;
-  const method = req.method;
+  const url = new URL(req.url, `https://${process.env.VERCEL_URL || 'localhost'}`);
+  const pathname = url.pathname.toLowerCase().replace(/\/+$/, '');
+  const method = req.method.toUpperCase();
 
-  logger.info(`收到请求: ${method} ${pathname}`);
+  logger.info(`请求: ${method} ${pathname}`);
 
   try {
-    // 2. 根据精确路径分发请求到相应的模块处理器
-    if (pathname === '/api/comments') {
-      logger.info(`路由到 Comments 模块: ${pathname}`);
-      // commentsApiHandler 内部会处理 GET, POST, PUT, DELETE 方法
-      return await commentApiHandler(req, res);
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204 });
     }
-    else if (pathname === '/api/likes') { // 假设点赞的统一路径是 /api/likes
-      logger.info(`路由到 Likes 模块: ${pathname}`);
-      // likeApiHandler 内部会处理 GET, POST, DELETE 等方法
-      return await likeApiHandler(req, res);
+
+    if (!ALLOWED_METHODS.includes(method)) {
+      return new Response(JSON.stringify({ success: false, message: `Method ${method} not allowed` }), { status: 405, headers: { 'Content-Type': 'application/json' } });
     }
-    else if (pathname === '/api/users') { // 假设用户的统一路径是 /api/users
-      logger.info(`路由到 User 模块: ${pathname}`);
-      // userApiHandler 内部会处理 POST, GET 等方法
-      return await userApiHandler(req, res);
+
+    const handlerFn = routes[pathname];
+    if (handlerFn) {
+      if (method === 'GET') {
+        res.headers.set('Cache-Control', 'public, max-age=3600, s-maxage=3600');
+      }
+      return await handlerFn(req, res);
     }
-    // TODO: 如果有其他 API 路由，在这里添加 else if 块
 
-
-  if (method === 'OPTIONS') {
-    logger.info(`处理 OPTIONS 请求: ${pathname}`);
-    return new Response(null, { status: 204, headers: res.headers });
-  }
-
-    // 3. 如果没有匹配到任何路由
-    logger.warn(`未找到匹配的 API 路由: ${pathname}`);
-    return new Response(JSON.stringify({ success: false, message: `API route not found: ${pathname}` }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json', ...res.headers },
-    });
+    return new Response(JSON.stringify({ success: false, message: `Route not found: ${pathname}` }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    // 4. 捕获顶层未处理的全局性错误
-    logger.error('API Gateway 发生未预期错误', error, { pathname, method });
-    return new Response(JSON.stringify({ success: false, message: 'Internal Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', ...res.headers },
-    });
+    logger.error('Gateway错误', error, { pathname, method });
+    const message = process.env.NODE_ENV === 'development' ? error.message : 'Internal error';
+    return new Response(JSON.stringify({ success: false, message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
