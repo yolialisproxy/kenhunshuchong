@@ -67,4 +67,30 @@ async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
   }
 }
 
+module.exports = async function handler(req, res) {
+  setCORS(res);
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  try {
+    req.body = await parseBody(req);
+    const action = req.query.action;
+
+    if (req.method === 'POST' && action === 'like') {
+      const { postId, commentId } = req.body;
+      if (!validateInput(postId, 'id') || !validateInput(commentId, 'id')) {
+        logger.error('点赞失败：无效参数', { postId, commentId });
+        return res.status(400).json({ success: false, message: '无效的 postId 或 commentId' });
+      }
+      try {
+        const result = await likeComment(postId, commentId);
+        return res.status(200).json({ success: true, ...result });
+      } catch (error) {
+        Sentry.captureException(error);
+        logger.error('点赞错误', { error: error.message, stack: error.stack });
+        if (error.isGhostLike) return res.status(410).json({ success: false, message: '评论不存在', ghostLike: true });
+        return res.status(500).json({ success: false, message: '点赞失败，请稍后重试', details: error.message });
+      }
+    }
+};
+
 module.exports = { likeComment };
