@@ -12,7 +12,7 @@ import {
   getArticleLikesCount,
   hasUserLikedArticle
 } from '../lib/likes.js';
-import { addComment, getComments, updateComment, deleteComment } from '../lib/comments.js';
+import { addComment, getComments, updateComment, removeComment } from '../lib/comments.js';
 import { addUser, updateUser, deleteUser, getUser } from '../lib/users.js';
 
 console.log('✅ api/index.js加载成功');
@@ -124,7 +124,7 @@ export default async function handler(req, res) {
             result = await updateComment(userId, postId, commentId, data);
             break;
           case 'delete':
-            result = await deleteComment(userId, postId, commentId);
+            result = await removeComment(userId, postId, commentId);
             break;
           default:
             throw new ValidationError(`Unsupported action: ${action}`);
