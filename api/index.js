@@ -1,4 +1,4 @@
-// api/index.js - 修复版：确保 handler 函数签名正确，适配 Vercel API 路由
+// api/index.js - 修复版：使用 ValidationError 导入
 
 import { setCORS, parseBody, logger, ValidationError } from '../lib/utils.js';
 import {
@@ -19,8 +19,25 @@ console.log('✅ api/index.js加载成功');
 
 // 主 API 处理函数（默认导出，明确声明 req 和 res 参数）
 export default async function handler(req, res) {
-  // 设置 CORS 头以支持跨域请求
-  setCORS(res, req);
+  // 验证 req 和 res
+  if (!req || !res) {
+    logger.error('缺少 req 或 res 参数', { req: !!req, res: !!res });
+    return new Response(
+      JSON.stringify({ success: false, message: 'Invalid request context' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // 设置 CORS 头
+  try {
+    setCORS(res, req);
+  } catch (error) {
+    logger.error('设置 CORS 失败', error);
+    return new Response(
+      JSON.stringify({ success: false, message: 'CORS setup failed' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
   // 处理 OPTIONS 预检请求
   if (req.method === 'OPTIONS') {
