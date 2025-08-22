@@ -49,5 +49,3 @@ export default async function handler(req, res) {
     return new Response(JSON.stringify({ success: false, message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 }
-
-handler(req, res);
