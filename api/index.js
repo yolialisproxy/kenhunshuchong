@@ -15,7 +15,7 @@ const routes = {
 
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 
-default function handler(req, res) {
+export default async function handler(req, res) {
   setCORS(res, req);
 
   const url = new URL(req.url, `https://${ process.env.VERCEL_URL }`);
