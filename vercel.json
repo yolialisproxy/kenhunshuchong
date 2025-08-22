@@ -6,6 +6,12 @@
       "use": "@vercel/node"
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs20.x",
+      "handler": "default"
+    }
+  },
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "/api/comments", "dest": "/api/index.js" },
