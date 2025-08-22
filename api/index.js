@@ -21,11 +21,6 @@ export default async function handler(req, res) {
 
   logger.info(`收到请求: ${method} ${pathname}`);
 
-  if (method === 'OPTIONS') {
-    logger.info(`处理 OPTIONS 请求: ${pathname}`);
-    return new Response(null, { status: 204, headers: res.headers });
-  }
-
   try {
     // 2. 根据精确路径分发请求到相应的模块处理器
     if (pathname === '/api/comments') {
@@ -44,6 +39,12 @@ export default async function handler(req, res) {
       return await userApiHandler(req, res);
     }
     // TODO: 如果有其他 API 路由，在这里添加 else if 块
+
+
+  if (method === 'OPTIONS') {
+    logger.info(`处理 OPTIONS 请求: ${pathname}`);
+    return new Response(null, { status: 204, headers: res.headers });
+  }
 
     // 3. 如果没有匹配到任何路由
     logger.warn(`未找到匹配的 API 路由: ${pathname}`);
