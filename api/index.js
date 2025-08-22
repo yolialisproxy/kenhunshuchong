@@ -10,7 +10,7 @@ console.log('✅ api/index.js加载模块成功');
 
 Sentry.init({ dsn: process.env.SENTRY_DSN });
 
-module.exports = async function handler(req, res) {
+export async function handler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 

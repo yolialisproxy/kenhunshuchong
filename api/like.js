@@ -67,7 +67,7 @@ async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
   }
 }
 
-module.exports = async function handler(req, res) {
+export async function handler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
