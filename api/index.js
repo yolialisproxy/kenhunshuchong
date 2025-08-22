@@ -53,7 +53,7 @@ export default async function handler(req, res) {
       headers: { 'Content-Type': 'application/json', ...res.headers },
     });
 
-  } catch (error: any) {
+  } catch (error) {
     // 4. 捕获顶层未处理的全局性错误
     logger.error('API Gateway 发生未预期错误', error, { pathname, method });
     return new Response(JSON.stringify({ success: false, message: 'Internal Server Error' }), {
