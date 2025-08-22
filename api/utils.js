@@ -6,6 +6,13 @@ import bcrypt from 'bcrypt';
 
 console.log('✅ lib/utils.js加载成功');
 
+// 简单的日志记录器
+const logger = {
+  info: (message, meta = {}) => console.log(`[INFO] ${message}`, meta),
+  warn: (message, meta = {}) => console.warn(`[WARN] ${message}`, meta),
+  error: (message, meta = {}) => console.error(`[ERROR] ${message}`, meta)
+};
+
 // 配置
 const CONFIG = {
   MAX_RETRIES: 3,
@@ -81,14 +88,39 @@ function validateInput(value, type) {
 async function parseBody(req) {
   let body = req.body;
   if (body && typeof body === 'object') return body;
+
   try {
-    if (req.headers['content-type']?.includes('application/json')) {
-      return typeof body === 'string' ? JSON.parse(body) : body;
+    const contentType = req.headers['content-type'];
+
+    // 处理JSON内容
+    if (contentType?.includes('application/json')) {
+      if (typeof body === 'string') {
+        return JSON.parse(body);
+      }
+      return {};
     }
+
+    // 处理表单数据
+    if (contentType?.includes('application/x-www-form-urlencoded')) {
+      if (typeof body === 'string') {
+        return Object.fromEntries(new URLSearchParams(body));
+      }
+      return {};
+    }
+
+    // 处理未知类型
     if (typeof body === 'string') {
-      try { return JSON.parse(body); } catch(err) {throw err;};
-      return Object.fromEntries(new URLSearchParams(body));
+      try {
+        return JSON.parse(body);
+      } catch (err) {
+        try {
+          return Object.fromEntries(new URLSearchParams(body));
+        } catch (err2) {
+          return {};
+        }
+      }
     }
+
     return {};
   } catch (e) {
     logger.warn('Body解析失败', { error: e.message });
