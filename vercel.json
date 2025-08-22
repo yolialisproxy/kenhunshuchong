@@ -1,15 +1,15 @@
 {
   "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
   "functions": {
     "api/index.js": {
       "runtime": "nodejs20.x",
       "handler": "default"
     }
-  },
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/api/comments", "dest": "/api/index.js" },
-    { "src": "/api/likes", "dest": "/api/index.js" },
-    { "src": "/api/users", "dest": "/api/index.js" }
-  ]
+  }
 }
