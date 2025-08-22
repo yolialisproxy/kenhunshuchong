@@ -1,4 +1,4 @@
-// api/index.js - 修复版：使用 ValidationError 导入
+// api/index.js - 修复版：使用 lib/users.js 的正确导出
 
 import { setCORS, parseBody, logger, ValidationError } from '../lib/utils.js';
 import {
