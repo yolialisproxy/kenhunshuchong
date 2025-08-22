@@ -1,10 +1,24 @@
-// 状态回顾：移除重复computeTotalLikes，优化likeComment，基于2025-08-22优化
-const { initFirebase, ref, get, update, runTransaction, withTimeout, validateInput, CONFIG } = require('../lib/utils.js');
+// api/like.js
+const path = require('path');
+const { initFirebase, ref, get, update, runTransaction, withTimeout, validateInput, CONFIG, logger, computeTotalLikes } = require(path.resolve(__dirname, '../lib/utils.js'));
+const Redis = require('ioredis');
+
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
 console.log('✅ api/like.js加载utils.js成功');
 
 async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
   if (!validateInput(postId, 'id') || !validateInput(commentId, 'id')) {
+    logger.error('无效的 postId 或 commentId', { postId, commentId });
     throw new Error('无效的 postId 或 commentId');
+  }
+
+  const rateLimitKey = `rate:like:${postId}:${commentId}`;
+  const rateLimitCount = await redis.incr(rateLimitKey);
+  await redis.expire(rateLimitKey, 60); // 1分钟窗口
+  if (rateLimitCount > 5) {
+    logger.warn('点赞频率过高', { postId, commentId });
+    throw new Error('点赞频率过高，请稍后重试');
   }
 
   let attempt = 0, retryInterval = 1000;
@@ -13,6 +27,7 @@ async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
       const commentRef = ref(initFirebase(), `comments/${postId}/${commentId}`);
       const snapshot = await withTimeout(get(commentRef), CONFIG.TIMEOUT);
       if (!snapshot.exists()) {
+        logger.warn('评论不存在', { postId, commentId });
         throw Object.assign(new Error('评论不存在'), { isGhostLike: true });
       }
 
@@ -20,59 +35,6 @@ async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
         runTransaction(ref(initFirebase(), `comments/${postId}/${commentId}/likes`), current => (current || 0) + 1),
         CONFIG.TIMEOUT
       );
-
-      async function computeTotalLikes(postId, commentId, depth = 0, cache = new Map()) {
-        if (depth > CONFIG.MAX_RECURSION_DEPTH) {
-          console.warn(`⚠️ 递归深度超过${CONFIG.MAX_RECURSION_DEPTH} (postId: ${postId}, commentId: ${commentId})`);
-          return 0;
-        }
-        if (!validateInput(postId, 'id') || !validateInput(commentId, 'id')) {
-          console.error(`❌ 无效的 postId 或 commentId:`, { postId, commentId });
-          return 0;
-        }
-
-        if (cache.has(commentId)) return cache.get(commentId);
-
-        try {
-          const commentRef = ref(initFirebase(), `comments/${postId}/${commentId}`);
-          const snapshot = await withTimeout(get(commentRef), CONFIG.TIMEOUT);
-          if (!snapshot.exists()) {
-            console.warn(`⚠️ 评论不存在 (postId: ${postId}, commentId: ${commentId})`);
-            return 0;
-          }
-
-          const comment = snapshot.val();
-          let total = comment.likes || 0;
-
-          if (Array.isArray(comment.children) && comment.children.length > 0) {
-            const childPromises = comment.children.map(child =>
-              validateInput(child.id, 'id') ? computeTotalLikes(postId, child.id, depth + 1, cache) : Promise.resolve(0)
-            );
-            const childTotals = await Promise.all(childPromises);
-            total += childTotals.reduce((sum, val) => sum + val, 0);
-
-            const updates = {};
-            comment.children.forEach((child, idx) => {
-              if (validateInput(child.id, 'id')) {
-                updates[`comments/${postId}/${child.id}/totalLikes`] = childTotals[idx];
-                updates[`comments/${postId}/${child.id}/lastSync`] = Date.now();
-              }
-            });
-            if (Object.keys(updates).length > 0) {
-              await withTimeout(update(ref(initFirebase()), updates), CONFIG.TIMEOUT);
-            }
-          }
-
-          await withTimeout(update(commentRef, { totalLikes: total, lastSync: Date.now() }), CONFIG.TIMEOUT);
-          cache.set(commentId, total);
-          return total;
-        } catch (err) {
-          console.error(`❌ computeTotalLikes失败:`, err.stack);
-          return cache.get(commentId) || 0;
-        }
-      }
-
-      const totalLikes = await computeTotalLikes(postId, commentId);
 
       async function updateAncestorsTotalLikes(currCommentId) {
         let currentId = currCommentId;
@@ -96,7 +58,7 @@ async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
       };
     } catch (err) {
       attempt++;
-      console.error(`❌ likeComment尝试${attempt}失败:`, err.stack);
+      logger.error(`likeComment尝试${attempt}失败`, { error: err.message, stack: err.stack });
       if (err.isGhostLike) throw err;
       if (attempt > maxRetries) throw new Error('点赞失败');
       await new Promise(resolve => setTimeout(resolve, retryInterval));

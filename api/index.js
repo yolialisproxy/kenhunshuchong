@@ -1,9 +1,14 @@
-// 状态回顾：修复路径错误，优化路由，基于2025-08-22优化
-const { submitComment, getComments, deleteComment, editComment } = require('../lib/comments.js');
-const { registerUserHandler, loginUserHandler } = require('../lib/user.js');
-const { likeComment } = require('../lib/like.js');
-const { parseBody, setCORS, validateInput } = require('../lib/utils.js');
+// api/index.js
+const path = require('path');
+const { submitComment, getComments, deleteComment, editComment } = require(path.resolve(__dirname, '../lib/comments.js'));
+const { registerUserHandler, loginUserHandler } = require(path.resolve(__dirname, '../lib/user.js'));
+const { likeComment } = require(path.resolve(__dirname, '../lib/like.js'));
+const { parseBody, setCORS, validateInput, logger } = require(path.resolve(__dirname, '../lib/utils.js'));
+const Sentry = require('@sentry/node');
+
 console.log('✅ api/index.js加载模块成功');
+
+Sentry.init({ dsn: process.env.SENTRY_DSN });
 
 module.exports = async function handler(req, res) {
   setCORS(res);
@@ -18,13 +23,15 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && action === 'like') {
       const { postId, commentId } = req.body;
       if (!validateInput(postId, 'id') || !validateInput(commentId, 'id')) {
+        logger.error('点赞失败：无效参数', { postId, commentId });
         return res.status(400).json({ success: false, message: '无效的 postId 或 commentId' });
       }
       try {
         const result = await likeComment(postId, commentId);
         return res.status(200).json({ success: true, ...result });
       } catch (error) {
-        console.error('❌ 点赞错误:', error.stack);
+        Sentry.captureException(error);
+        logger.error('点赞错误', { error: error.message, stack: error.stack });
         if (error.isGhostLike) return res.status(410).json({ success: false, message: '评论不存在', ghostLike: true });
         return res.status(500).json({ success: false, message: '点赞失败，请稍后重试', details: error.message });
       }
@@ -44,7 +51,8 @@ module.exports = async function handler(req, res) {
         return res.status(405).json({ success: false, error: 'Method not allowed' });
     }
   } catch (err) {
-    console.error('❌ 服务器错误:', err.stack);
+    Sentry.captureException(err);
+    logger.error('服务器错误', { error: err.message, stack: err.stack });
     return res.status(500).json({ success: false, error: '服务器错误，请稍后重试', details: err.message });
   }
 };

@@ -1,15 +1,30 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": "api/**/*.js", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/comments", "dest": "/api/comments.js" },
-    { "src": "/api/like", "dest": "/api/like.js" },
-    { "src": "/api/user", "dest": "/api/user.js" },
-    { "src": "/api/(.*)", "dest": "/api/index.js" }
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1",
+      "headers": {
+        "Cache-Control": "s-maxage=31536000, stale-while-revalidate"
+      }
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 10,
+      "includeFiles": ["lib/**"]
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/warmup",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }
