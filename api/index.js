@@ -12,7 +12,7 @@ console.log('✅ api/index.js加载成功');
  * Vercel Serverless Function 的主处理函数
  * 根据请求的精确路径分发到不同的业务模块处理器
  */
-export default async function handler(req: Request, res: Response): Promise<Response> {
+export default async function handler(req, res) {
   setCORS(res, req);
 
   const url = new URL(req.url || '', `http://${req.headers.get('host')}`);
