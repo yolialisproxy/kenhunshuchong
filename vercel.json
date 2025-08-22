@@ -8,8 +8,8 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
-    { "src": "/api/comments", "dest": "/api/comments.js" },
-    { "src": "/api/likes", "dest": "/api/likes.js" },
-    { "src": "/api/users", "dest": "/api/users.js" }
+    { "src": "/api/comments", "dest": "/api/index.js" },
+    { "src": "/api/likes", "dest": "/api/index.js" },
+    { "src": "/api/users", "dest": "/api/index.js" }
   ]
 }
