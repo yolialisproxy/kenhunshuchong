@@ -15,10 +15,10 @@ const routes = {
 
 const ALLOWED_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
 
-default async function handler(req, res) {
+async function handler(req, res) {
   setCORS(res, req);
 
-  const url = new URL(req.url, `https://${process.env.VERCEL_URL || 'localhost'}`);
+  const url = new URL(req.url, `https://${ process.env.VERCEL_URL }`);
   const pathname = url.pathname.toLowerCase().replace(/\/+$/, '');
   const method = req.method.toUpperCase();
 
