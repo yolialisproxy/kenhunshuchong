@@ -1,4 +1,3 @@
-// 状态回顾：修复导出为CommonJS，优化computeTotalLikes，基于2025-08-22优化
 const { initFirebase, ref, push, set, get, update, remove, runTransaction, parseBody, setCORS, withTimeout, validateInput, CONFIG } = require('../lib/utils.js');
 console.log('✅ api/comments.js加载utils.js成功');
 

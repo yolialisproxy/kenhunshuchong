@@ -1,4 +1,3 @@
-// 状态回顾：移除重复代码，优化用户认证，基于2025-08-22优化
 const { initFirebase, ref, set, get, parseBody, setCORS, withTimeout, bcrypt, validateInput, CONFIG } = require('../lib/utils.js');
 console.log('✅ api/user.js加载utils.js成功');
 
