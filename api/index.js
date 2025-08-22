@@ -1,19 +1,22 @@
 // api/index.js
 import { setCORS } from '../lib/utils.js';
 
-export default async function handler(req, res) {
-  // 设置CORS
+export default function handler(req, res) {
   setCORS(res);
 
-  // 返回API信息
-  return res.status(200).json({
+  // 处理预检请求
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  res.status(200).json({
     success: true,
-    message: '欢迎使用博客API',
+    message: 'API服务运行正常',
     version: '1.0.0',
     endpoints: {
       comments: '/api/comments',
       likes: '/api/likes',
-      user: '/api/user'
+      users: '/api/user'
     }
   });
 }
