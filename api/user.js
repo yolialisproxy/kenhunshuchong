@@ -1,7 +1,6 @@
 // api/user.js
-const path = require('path');
-const { initFirebase, ref, set, get, parseBody, setCORS, withTimeout, bcrypt, validateInput, CONFIG, logger, sanitizeInput } = require(path.resolve(__dirname, '../lib/utils.js'));
-const jwt = require('jsonwebtoken');
+import { initFirebase, ref, set, get, parseBody, setCORS, withTimeout, bcrypt, validateInput, CONFIG, logger, sanitizeInput } from '../lib/utils.js';
+import jwt from 'jsonwebtoken';
 
 console.log('✅ api/user.js加载utils.js成功');
 

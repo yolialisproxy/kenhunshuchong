@@ -1,11 +1,11 @@
 // lib/utils.js
-const { initializeApp } = require('firebase/app');
-const { getDatabase, ref, push, set, get, update, remove, runTransaction } = require('firebase/database');
-const sanitizeHtml = require('sanitize-html');
-const winston = require('winston');
-const Redis = require('ioredis');
-const path = require('path');
-const bcrypt = require('bcrypt');
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
+import sanitizeHtml from 'sanitize-html';
+import winston from 'winston';
+import Redis from 'ioredis';
+import path from 'path';
+import bcrypt from 'bcrypt';
 
 console.log('✅ lib/utils.js加载成功');
 

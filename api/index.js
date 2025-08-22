@@ -1,10 +1,9 @@
 // api/index.js
-const path = require('path');
-const { submitComment, getComments, deleteComment, editComment } = require(path.resolve(__dirname, '../lib/comments.js'));
-const { registerUserHandler, loginUserHandler } = require(path.resolve(__dirname, '../lib/user.js'));
-const { likeComment } = require(path.resolve(__dirname, '../lib/like.js'));
-const { parseBody, setCORS, validateInput, logger } = require(path.resolve(__dirname, '../lib/utils.js'));
-const Sentry = require('@sentry/node');
+import { submitComment, getComments, deleteComment, editComment } from '../lib/comments.js';
+import { registerUserHandler, loginUserHandler } from '../lib/user.js';
+import { likeComment } from '../lib/like.js';
+import { parseBody, setCORS, validateInput, logger } from '../lib/utils.js';
+import Sentry from '@sentry/node';
 
 console.log('✅ api/index.js加载模块成功');
 

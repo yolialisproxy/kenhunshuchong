@@ -1,9 +1,5 @@
 // api/like.js
-const path = require('path');
-const { initFirebase, ref, get, update, runTransaction, withTimeout, validateInput, CONFIG, logger, computeTotalLikes } = require(path.resolve(__dirname, '../lib/utils.js'));
-const Redis = require('ioredis');
-
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+import { initFirebase, ref, get, update, runTransaction, withTimeout, validateInput, CONFIG, logger, computeTotalLikes } from '../lib/utils.js';
 
 console.log('✅ api/like.js加载utils.js成功');
 
@@ -14,12 +10,6 @@ export async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RET
   }
 
   const rateLimitKey = `rate:like:${postId}:${commentId}`;
-  const rateLimitCount = await redis.incr(rateLimitKey);
-  await redis.expire(rateLimitKey, 60); // 1分钟窗口
-  if (rateLimitCount > 5) {
-    logger.warn('点赞频率过高', { postId, commentId });
-    throw new Error('点赞频率过高，请稍后重试');
-  }
 
   let attempt = 0, retryInterval = 1000;
   while (attempt <= maxRetries) {
