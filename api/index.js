@@ -4,36 +4,23 @@
 import { likeApiHandler } from '../lib/likes.js';
 import { userApiHandler } from '../lib/users.js';
 import { commentApiHandler } from '../lib/comments.js';
-import { setCORS } from '../lib/utils.js'; // 导入通用 CORS 设置
+import { setCORS, logger } from '../lib/utils.js'; // 导入通用 CORS 设置
 
 console.log('✅ api/index.js加载成功');
 
 /**
- * 结构化日志记录器，用于 api/index.js 层面
- */
-const logger = {
-  info: (message: string, context?: object) => console.log(`ℹ️ [ApiGateway] ${message}`, context || ''),
-  error: (message: string, error?: Error, context?: object) => console.error(`❌ [ApiGateway] ${message}`, context, error ? error.stack : ''),
-  warn: (message: string, context?: object) => console.warn(`⚠️ [ApiGateway] ${message}`, context || ''),
-};
-
-/**
  * Vercel Serverless Function 的主处理函数
  * 根据请求的精确路径分发到不同的业务模块处理器
- * @param {Request} req - HTTP请求对象，通常是Vercel环境下的Web标准Request对象
- * @param {Response} res - HTTP响应对象，通常是Vercel环境下的Web标准Response对象
- * @returns {Promise<Response>} - 包含操作结果的HTTP响应
  */
 export default async function handler(req: Request, res: Response): Promise<Response> {
+  setCORS(res, req);
+
   const url = new URL(req.url || '', `http://${req.headers.get('host')}`);
   const pathname = url.pathname;
   const method = req.method;
 
   logger.info(`收到请求: ${method} ${pathname}`);
 
-  // 1. 设置 CORS 头，处理 OPTIONS 预检请求
-  // 使用 lib/utils.js 中的 setCORS，它会根据配置判断 Access-Control-Allow-Origin
-  setCORS(res, req);
   if (method === 'OPTIONS') {
     logger.info(`处理 OPTIONS 请求: ${pathname}`);
     return new Response(null, { status: 204, headers: res.headers });
