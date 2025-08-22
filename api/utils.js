@@ -3,7 +3,6 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, push, set, get, update, remove, runTransaction } from 'firebase/database';
 import sanitizeHtml from 'sanitize-html';
 import winston from 'winston';
-import Redis from 'ioredis';
 import path from 'path';
 import bcrypt from 'bcrypt';
 
@@ -21,9 +20,6 @@ const logger = winston.createLogger({
     new winston.transports.File({ filename: 'logs/error.log', level: 'error' })
   ]
 });
-
-// Redis 缓存
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 // 配置
 const CONFIG = {
@@ -134,8 +130,6 @@ async function computeTotalLikes(postId, commentId, depth = 0, cache = new Map()
   }
 
   const cacheKey = `likes:${postId}:${commentId}`;
-  const cached = await redis.get(cacheKey);
-  if (cached) return parseInt(cached, 10);
 
   try {
     const commentRef = ref(initFirebase(), `comments/${postId}/${commentId}`);
@@ -168,7 +162,6 @@ async function computeTotalLikes(postId, commentId, depth = 0, cache = new Map()
     }
 
     await withTimeout(update(commentRef, { totalLikes: total, lastSync: Date.now() }), CONFIG.TIMEOUT);
-    await redis.set(cacheKey, total, 'EX', CONFIG.CACHE_TTL);
     cache.set(commentId, total);
     return total;
   } catch (err) {
