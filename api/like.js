@@ -7,7 +7,7 @@ const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 
 console.log('✅ api/like.js加载utils.js成功');
 
-async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
+export async function likeComment(postId, commentId, maxRetries = CONFIG.MAX_RETRIES) {
   if (!validateInput(postId, 'id') || !validateInput(commentId, 'id')) {
     logger.error('无效的 postId 或 commentId', { postId, commentId });
     throw new Error('无效的 postId 或 commentId');
@@ -92,5 +92,3 @@ export async function handler(req, res) {
       }
     }
 };
-
-module.exports = { likeComment };

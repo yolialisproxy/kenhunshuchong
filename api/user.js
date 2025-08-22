@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 
 console.log('✅ api/user.js加载utils.js成功');
 
-async function registerUserHandler(req, res) {
+export async function registerUserHandler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -50,7 +50,7 @@ async function registerUserHandler(req, res) {
   }
 }
 
-async function loginUserHandler(req, res) {
+export async function loginUserHandler(req, res) {
   setCORS(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -116,5 +116,3 @@ export async function handler(req, res) {
     return res.status(500).json({ success: false, error: '服务器错误，请稍后重试', details: err.message });
   }
 };
-
-module.exports = { registerUserHandler, loginUserHandler };
