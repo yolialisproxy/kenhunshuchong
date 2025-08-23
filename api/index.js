@@ -141,7 +141,7 @@ export default async function handler(req, res) {
           case 'login':
             result = await loginUser(userData);
             break;
-          case 'get':
+          case 'getProfile':
             result = await getUserProfile(username);
             break;
           case 'update':
