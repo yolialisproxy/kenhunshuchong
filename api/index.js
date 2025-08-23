@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     );
   }
 
-  const { type, action, username, postId, commentId, data } = body;
+  const { type, action, username, postId, commentId, adminId, data, commentData, content } = body;
 
   // 验证基本参数
   if (!type || !action || !username || !postId) {
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
   try {
     let result;
     switch (type) {
-      case 'article':
+      case 'articleLike':
         switch (action) {
           case 'add_like':
             result = await addArticleLike(username, postId);
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
             throw new ValidationError(`Unsupported action: ${action}`);
         }
         break;
-      case 'comment':
+      case 'commentLike':
         switch (action) {
           case 'add_like':
             result = await addCommentLike(username, postId, commentId);
@@ -114,17 +114,20 @@ export default async function handler(req, res) {
           case 'has_liked':
             result = await hasUserLikedComment(username, postId, commentId);
             break;
+        }
+      case 'comment':
+        switch (action) {
           case 'add':
-            result = await addComment(username, postId, data);
+            result = await addComment(commentData);
             break;
           case 'get':
             result = await getComments(postId);
             break;
           case 'update':
-            result = await updateComment(username, postId, commentId, data);
+            result = await updateComment(postId, commentId, content, username);
             break;
           case 'delete':
-            result = await removeComment(username, postId, commentId);
+            result = await removeComment(username, postId, commentId, adminId);
             break;
           default:
             throw new ValidationError(`Unsupported action: ${action}`);
