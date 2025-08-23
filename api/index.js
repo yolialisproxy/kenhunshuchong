@@ -13,7 +13,7 @@ import {
   hasUserLikedArticle
 } from '../lib/likes.js';
 import { addComment, getComments, updateComment, removeComment } from '../lib/comments.js';
-import { registerUser, updateUser, deleteUser, getUserProfile } from '../lib/users.js';
+import { registerUser, loginUser, updateUser, deleteUser, getUserProfile } from '../lib/users.js';
 
 console.log('✅ api/index.js加载成功');
 
@@ -137,6 +137,9 @@ export default async function handler(req, res) {
         switch (action) {
           case 'register':
             result = await registerUser(userData);
+            break;
+          case 'login':
+            result = await loginUser(userData);
             break;
           case 'get':
             result = await getUserProfile(username);
