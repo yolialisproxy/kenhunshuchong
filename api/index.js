@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     );
   }
 
-  const { type, action, username, postId, commentId, adminId, data, commentData, content } = body;
+  const { type, action, username, postId, commentId, adminId, data, userData, commentData, content } = body;
 
   // 验证基本参数
   if (!type || !action || !username || !postId) {
