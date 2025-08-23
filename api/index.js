@@ -13,7 +13,7 @@ import {
   hasUserLikedArticle
 } from '../lib/likes.js';
 import { addComment, getComments, updateComment, removeComment } from '../lib/comments.js';
-import { addUser, updateUser, deleteUser, getUser } from '../lib/users.js';
+import { registerUser, updateUser, deleteUser, getUserProfile } from '../lib/users.js';
 
 console.log('✅ api/index.js加载成功');
 
@@ -65,11 +65,11 @@ export default async function handler(req, res) {
     );
   }
 
-  const { type, action, userId, postId, commentId, data } = body;
+  const { type, action, username, postId, commentId, data } = body;
 
   // 验证基本参数
-  if (!type || !action || !userId || !postId) {
-    logger.warn('缺少必要参数', { type, action, userId, postId });
+  if (!type || !action || !username || !postId) {
+    logger.warn('缺少必要参数', { type, action, username, postId });
     return new Response(
       JSON.stringify({ success: false, message: 'Missing required parameters' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -82,16 +82,16 @@ export default async function handler(req, res) {
       case 'article':
         switch (action) {
           case 'add_like':
-            result = await addArticleLike(userId, postId);
+            result = await addArticleLike(username, postId);
             break;
           case 'remove_like':
-            result = await removeArticleLike(userId, postId);
+            result = await removeArticleLike(username, postId);
             break;
           case 'get_count':
             result = await getArticleLikesCount(postId);
             break;
           case 'has_liked':
-            result = await hasUserLikedArticle(userId, postId);
+            result = await hasUserLikedArticle(username, postId);
             break;
           default:
             throw new ValidationError(`Unsupported action: ${action}`);
@@ -100,10 +100,10 @@ export default async function handler(req, res) {
       case 'comment':
         switch (action) {
           case 'add_like':
-            result = await addCommentLike(userId, postId, commentId);
+            result = await addCommentLike(username, postId, commentId);
             break;
           case 'remove_like':
-            result = await removeCommentLike(userId, postId, commentId);
+            result = await removeCommentLike(username, postId, commentId);
             break;
           case 'get_direct_count':
             result = await getCommentDirectLikesCount(postId, commentId);
@@ -112,19 +112,19 @@ export default async function handler(req, res) {
             result = await getCommentTotalLikesCount(postId, commentId);
             break;
           case 'has_liked':
-            result = await hasUserLikedComment(userId, postId, commentId);
+            result = await hasUserLikedComment(username, postId, commentId);
             break;
           case 'add':
-            result = await addComment(userId, postId, data);
+            result = await addComment(username, postId, data);
             break;
           case 'get':
             result = await getComments(postId);
             break;
           case 'update':
-            result = await updateComment(userId, postId, commentId, data);
+            result = await updateComment(username, postId, commentId, data);
             break;
           case 'delete':
-            result = await removeComment(userId, postId, commentId);
+            result = await removeComment(username, postId, commentId);
             break;
           default:
             throw new ValidationError(`Unsupported action: ${action}`);
@@ -133,16 +133,16 @@ export default async function handler(req, res) {
       case 'user':
         switch (action) {
           case 'add':
-            result = await addUser(userId, data);
+            result = await registerUser(userData);
             break;
           case 'get':
-            result = await getUser(userId);
+            result = await getUserProfile(username);
             break;
           case 'update':
-            result = await updateUser(userId, data);
+            result = await updateUser(username, data);
             break;
           case 'delete':
-            result = await deleteUser(userId);
+            result = await deleteUser(username);
             break;
           default:
             throw new ValidationError(`Unsupported action: ${action}`);
@@ -157,7 +157,7 @@ export default async function handler(req, res) {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    logger.error(`API处理失败 (type: ${type}, action: ${action})`, error, { userId, postId, commentId });
+    logger.error(`API处理失败 (type: ${type}, action: ${action})`, error, { username, postId, commentId });
     const status = error.name === 'ValidationError' ? 400 : 500;
     const message = process.env.NODE_ENV === 'development' ? error.message : 'Server error';
     return new Response(
