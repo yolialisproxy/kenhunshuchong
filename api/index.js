@@ -132,7 +132,7 @@ export default async function handler(req, res) {
         break;
       case 'user':
         switch (action) {
-          case 'add':
+          case 'register':
             result = await registerUser(userData);
             break;
           case 'get':
