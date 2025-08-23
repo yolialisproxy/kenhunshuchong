@@ -68,7 +68,7 @@ export default async function handler(req, res) {
   const { type, action, username, postId, commentId, adminId, data, userData, commentData, content } = body;
 
   // 验证基本参数
-  if (!type || !action || !username || !postId) {
+  if (!type || !action) {
     logger.warn('缺少必要参数', { type, action, username, postId });
     return new Response(
       JSON.stringify({ success: false, message: 'Missing required parameters' }),
