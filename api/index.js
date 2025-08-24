@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     );
   }
 
-  const { type, action, ...data } = body; // 解构出 type, action 和其余数据
+  const { type, action, data } = body; // 解构出 type, action 和其余数据
 
   // 验证基本参数
   if (!type || !action) {
