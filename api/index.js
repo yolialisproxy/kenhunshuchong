@@ -82,11 +82,11 @@ export default async function handler(req, res) {
 
       case 'like':
         switch (action) {
-          case 'add':
+          case 'add_comment_like':
             if (req.method !== 'POST') throw new Error('Method not allowed for addCommentLike');
             result = await likesLib.addCommentLike(data);
             break;
-          case 'remove_like':
+          case 'remove_comment_like':
             if (req.method !== 'DELETE') throw new Error('Method not allowed for removeCommentLike');
             result = await likesLib.removeCommentLike(data);
             break;
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
             break;
           case 'add_article_like':
             if (req.method !== 'POST') throw new Error('Method not allowed for addArticleLike');
-            result = await likesLib.addArticleLike(datta);
+            result = await likesLib.addArticleLike(data);
             break;
           case 'remove_article_like':
             if (req.method !== 'DELETE') throw new Error('Method not allowed for removeArticleLike');
