@@ -1,9 +1,9 @@
 // api/index.js (修正版本 - 中心调度器)
 
 // 假设这些 lib 文件导出了具体的操作函数，而非一个总的 handler
-import * as commentsLib from '../lib/comments';
-import * as likesLib from '../lib/likes';
-import * as usersLib from '../lib/users';
+import * as commentsLib from '../lib/comments.js';
+import * as likesLib from '../lib/likes.js';
+import * as usersLib from '../lib/users.js';
 import { setCORS, parseBody, logger, ValidationError } from '../lib/utils.js';
 
 export default async function handler(req, res) {
