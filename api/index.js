@@ -1,33 +1,12 @@
-// api/index.js - 修复版：使用 lib/users.js 的正确导出
+// api/index.js (修正版本 - 中心调度器)
 
+// 假设这些 lib 文件导出了具体的操作函数，而非一个总的 handler
+import * as commentsLib from '../lib/comments';
+import * as likesLib from '../lib/likes';
+import * as usersLib from '../lib/users';
 import { setCORS, parseBody, logger, ValidationError } from '../lib/utils.js';
-import {
-  addCommentLike,
-  removeCommentLike,
-  getCommentDirectLikesCount,
-  getCommentTotalLikesCount,
-  hasUserLikedComment,
-  addArticleLike,
-  removeArticleLike,
-  getArticleLikesCount,
-  hasUserLikedArticle
-} from '../lib/likes.js';
-import { addComment, getComments, updateComment, removeComment } from '../lib/comments.js';
-import { registerUser, loginUser, updateUser, deleteUser, getUserProfile } from '../lib/users.js';
 
-console.log('✅ api/index.js加载成功');
-
-// 主 API 处理函数（默认导出，明确声明 req 和 res 参数）
 export default async function handler(req, res) {
-  // 验证 req 和 res
-  if (!req || !res) {
-    logger.error('缺少 req 或 res 参数', { req: !!req, res: !!res });
-    return new Response(
-      JSON.stringify({ success: false, message: 'Invalid request context' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
   // 设置 CORS 头
   try {
     setCORS(res, req);
@@ -39,18 +18,17 @@ export default async function handler(req, res) {
     );
   }
 
-  // 处理 OPTIONS 预检请求
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204 });
+    // 验证 req 和 res
+  if (!req || !res) {
+    logger.error('缺少 req 或 res 参数', { req: !!req, res: !!res });
+    return new Response(
+      JSON.stringify({ success: false, message: 'Invalid request context' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
-  // 验证请求方法
-  if (req.method !== 'POST') {
-    logger.warn('不支持的请求方法', { method: req.method });
-    return new Response(
-      JSON.stringify({ success: false, message: 'Method not allowed' }),
-      { status: 405, headers: { 'Content-Type': 'application/json' } }
-    );
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204 });
   }
 
   // 解析请求体
@@ -65,11 +43,11 @@ export default async function handler(req, res) {
     );
   }
 
-  const { type, action, username, postId, commentId, adminId, data, userData, commentData, content } = body;
+  const { type, action, ...data } = body; // 解构出 type, action 和其余数据
 
   // 验证基本参数
   if (!type || !action) {
-    logger.warn('缺少必要参数', { type, action, username, postId });
+    logger.warn('缺少必要参数', { type, action});
     return new Response(
       JSON.stringify({ success: false, message: 'Missing required parameters' }),
       { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -79,96 +57,116 @@ export default async function handler(req, res) {
   try {
     let result;
     switch (type) {
-      case 'articleLike':
-        switch (action) {
-          case 'add_like':
-            result = await addArticleLike(username, postId);
-            break;
-          case 'remove_like':
-            result = await removeArticleLike(username, postId);
-            break;
-          case 'get_count':
-            result = await getArticleLikesCount(postId);
-            break;
-          case 'has_liked':
-            result = await hasUserLikedArticle(username, postId);
-            break;
-          default:
-            throw new ValidationError(`Unsupported action: ${action}`);
-        }
-        break;
-      case 'commentLike':
-        switch (action) {
-          case 'add_like':
-            result = await addCommentLike(username, postId, commentId);
-            break;
-          case 'remove_like':
-            result = await removeCommentLike(username, postId, commentId);
-            break;
-          case 'get_direct_count':
-            result = await getCommentDirectLikesCount(postId, commentId);
-            break;
-          case 'get_total_count':
-            result = await getCommentTotalLikesCount(postId, commentId);
-            break;
-          case 'has_liked':
-            result = await hasUserLikedComment(username, postId, commentId);
-            break;
-        }
       case 'comment':
         switch (action) {
-          case 'add':
-            result = await addComment(commentData);
-            break;
           case 'get':
-            result = await getComments(postId);
+            if (req.method !== 'GET') throw new Error('Method not allowed for get comments');
+            result = await commentsLib.getComments(data); // 假设 lib/comments.js 导出 getComments 函数
+            break;
+          case 'add':
+            if (req.method !== 'POST') throw new Error('Method not allowed for add comment');
+            result = await commentsLib.addComment(data); // 假设 lib/comments.js 导出 addComment 函数
             break;
           case 'update':
-            result = await updateComment(postId, commentId, content, username);
+            if (req.method !== 'PUT') throw new Error('Method not allowed for update comment');
+            result = await commentsLib.updateComment(data); // 假设 lib/comments.js 导出 updateComment 函数
             break;
           case 'delete':
-            result = await removeComment(username, postId, commentId, adminId);
+            if (req.method !== 'DELETE') throw new Error('Method not allowed for delete comment');
+            result = await commentsLib.deleteComment(data); // 假设 lib/comments.js 导出 deleteComment 函数
             break;
           default:
-            throw new ValidationError(`Unsupported action: ${action}`);
+            throw new Error(`Unknown action "${action}" for comment type`);
         }
         break;
+
+      case 'like':
+        switch (action) {
+          case 'add':
+            if (req.method !== 'POST') throw new Error('Method not allowed for addCommentLike');
+            result = await likesLib.addCommentLike(data);
+            break;
+          case 'remove_like':
+            if (req.method !== 'DELETE') throw new Error('Method not allowed for removeCommentLike');
+            result = await likesLib.removeCommentLike(data);
+            break;
+          case 'get_direct_count':
+            if (req.method !== 'GET') throw new Error('Method not allowed for getCommentDirectLikesCount');
+            result = await likesLib.getCommentDirectLikesCount(data);
+            break;
+          case 'get_total_count':
+            if (req.method !== 'GET') throw new Error('Method not allowed for getCommentTotalLikesCount');
+            result = await likesLib.getCommentTotalLikesCount(data);
+            break;
+          case 'has_liked':
+            if (req.method !== 'POST') throw new Error('Method not allowed for hasUserLikedComment');
+            result = await likesLib.hasUserLikedComment(data);
+            break;
+          case 'add_article_like':
+            if (req.method !== 'POST') throw new Error('Method not allowed for addArticleLike');
+            result = await likesLib.addArticleLike(datta);
+            break;
+          case 'remove_article_like':
+            if (req.method !== 'DELETE') throw new Error('Method not allowed for removeArticleLike');
+            result = await likesLib.removeArticleLike(data);
+            break;
+          case 'get_article_count':
+            if (req.method !== 'GET') throw new Error('Method not allowed for getArticleLikesCount');
+            result = await likesLib.getArticleLikesCount(data);
+            break;
+          case 'has_article_liked':
+            if (req.method !== 'POST') throw new Error('Method not allowed for hasUserLikedArticle');
+            result = await likesLib.hasUserLikedArticle(data);
+            break;
+          default:
+            throw new Error(`Unknown action "${action}" for like type`);
+        }
+        break;
+
       case 'user':
         switch (action) {
           case 'register':
-            result = await registerUser(userData);
+            if (req.method !== 'POST') throw new Error('Method not allowed for registerUser');
+            result = await usersLib.registerUser(data);
             break;
           case 'login':
-            result = await loginUser(userData);
+            if (req.method !== 'POST') throw new Error('Method not allowed for loginUser');
+            result = await usersLib.loginUser(data);
             break;
           case 'getProfile':
-            result = await getUserProfile(username);
+            if (req.method !== 'GET') throw new Error('Method not allowed for getUserProfile');
+            result = await usersLib.getUserProfile(data);
             break;
           case 'update':
-            result = await updateUser(username, data);
+            if (req.method !== 'PUT') throw new Error('Method not allowed for updateUser');
+            result = await usersLib.updateUser(data);
             break;
           case 'delete':
-            result = await deleteUser(username);
+            if (req.method !== 'DELETE') throw new Error('Method not allowed for deleteUser');
+            result = await usersLib.deleteUser(data);
             break;
+          // ... 更多用户相关操作
           default:
-            throw new ValidationError(`Unsupported action: ${action}`);
+            throw new Error(`Unknown action "${action}" for user type`);
         }
         break;
+
       default:
-        throw new ValidationError(`Unsupported type: ${type}`);
+        throw new Error(`Unknown request type: ${type}`);
     }
 
     return new Response(
       JSON.stringify({ success: true, data: result }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
+
   } catch (error) {
-    logger.error(`API处理失败 (type: ${type}, action: ${action})`, error, { username, postId, commentId });
-    const status = error.name === 'ValidationError' ? 400 : 500;
-    const message = process.env.NODE_ENV === 'development' ? error.message : 'Server error';
+    logger.error('[API Index] API 处理失败', { error: error.message, stack: error.stack, body, method: req.method, type, action });
+    const statusCode = error.status || 500;
+    const errorMessage = error.message || 'Server error';
     return new Response(
-      JSON.stringify({ success: false, message }),
-      { status, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ success: false, message: errorMessage }),
+      { status: statusCode, headers: { 'Content-Type': 'application/json' } }
     );
   }
 }
