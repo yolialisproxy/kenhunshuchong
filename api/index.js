@@ -3,26 +3,13 @@
 import * as commentsLib from '../lib/comments.js';
 import * as likesLib from '../lib/likes.js';
 import * as usersLib from '../lib/users.js';
-import { setCORS as utilsSetCORS, parseBody, logger, ValidationError } from '../lib/utils.js'; // Import setCORS from utils
+import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; // Import setCORS from utils
 
 // --- Handler Function Signature ---
 // Vercel Serverless Functions typically receive only `req` and should return a `Response`.
 // `res` object is not directly available or used in the same way as in Express.
-export default async function handler(req) {
-  // --- CORS Setup ---
-  // Set CORS headers dynamically based on the incoming request's origin.
-  // Note: Vercel's serverless functions handle CORS preflight (OPTIONS) differently.
-  // We'll ensure CORS headers are applied to the actual response.
-  const corsHeaders = utilsSetCORS(req); // Call setCORS with the request to get CORS headers
-
-  // --- Basic Request Validation ---
-  if (!req) {
-    logger.error('缺少 req 参数');
-    return new Response(
-      JSON.stringify({ success: false, message: 'Invalid request context' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+export default async function handler(req, res) {
+  res.setCORS(res);
 
   // --- Handle OPTIONS (Preflight) Requests ---
   if (req.method === 'OPTIONS') {
