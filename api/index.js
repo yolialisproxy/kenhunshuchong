@@ -21,6 +21,7 @@ export default async function handler(req, res) {
   let body;
   try {
     body = await parseBody(req);
+    console.log("Parsed Body:", body);
   } catch (error) {
     logger.error('解析请求体失败', error);
     // Return 400 Bad Request if body parsing fails
