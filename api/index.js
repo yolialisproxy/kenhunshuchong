@@ -46,8 +46,6 @@ export default async function handler(req) {
 
   // --- Extract Core Request Parameters ---
   const { type, action } = body;
-  // Assume 'data' is the entire body if it's not type/action, or directly use 'body' if needed
-  const dataPayload = body; // Use the whole body as payload if type/action are top-level
 
   // --- Validate Essential Parameters ---
   if (!type || !action) {
@@ -69,21 +67,13 @@ export default async function handler(req) {
         // Route comments-related requests
         switch (action) {
           case 'get':
-            if (req.method !== 'GET') throw new Error('Method not allowed for GET comments');
-            result = await commentsLib.getComments(dataPayload);
-            break;
+            result = await commentsLib.getComments(body);
           case 'add':
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST add comment');
-            result = await commentsLib.addComment(dataPayload);
-            break;
+            result = await commentsLib.addComment(body);
           case 'update':
-            if (req.method !== 'PUT') throw new Error('Method not allowed for PUT update comment');
-            result = await commentsLib.updateComment(dataPayload);
-            break;
+            result = await commentsLib.updateComment(body);
           case 'delete':
-            if (req.method !== 'DELETE') throw new Error('Method not allowed for DELETE comment');
-            result = await commentsLib.deleteComment(dataPayload);
-            break;
+            result = await commentsLib.deleteComment(body);
           default:
             throw new Error(`Unknown action "${action}" for type "comment"`);
         }
@@ -93,41 +83,23 @@ export default async function handler(req) {
         // Route likes-related requests
         switch (action) {
           case 'add_comment_like':
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST addCommentLike');
-            result = await likesLib.addCommentLike(dataPayload);
-            break;
+            result = await likesLib.addCommentLike(body);
           case 'remove_comment_like':
-            if (req.method !== 'DELETE') throw new Error('Method not allowed for DELETE removeCommentLike');
-            result = await likesLib.removeCommentLike(dataPayload);
-            break;
+            result = await likesLib.removeCommentLike(body);
           case 'get_direct_count':
-            if (req.method !== 'GET') throw new Error('Method not allowed for GET getCommentDirectLikesCount');
-            result = await likesLib.getCommentDirectLikesCount(dataPayload);
-            break;
+            result = await likesLib.getCommentDirectLikesCount(body);
           case 'get_total_count':
-            if (req.method !== 'GET') throw new Error('Method not allowed for GET getCommentTotalLikesCount');
-            result = await likesLib.getCommentTotalLikesCount(dataPayload);
-            break;
+            result = await likesLib.getCommentTotalLikesCount(body);
           case 'has_liked': // Check if user liked a comment
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST hasUserLikedComment');
-            result = await likesLib.hasUserLikedComment(dataPayload);
-            break;
+            result = await likesLib.hasUserLikedComment(body);
           case 'add_article_like':
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST addArticleLike');
-            result = await likesLib.addArticleLike(dataPayload);
-            break;
+            result = await likesLib.addArticleLike(body);
           case 'remove_article_like':
-            if (req.method !== 'DELETE') throw new Error('Method not allowed for DELETE removeArticleLike');
-            result = await likesLib.removeArticleLike(dataPayload);
-            break;
+            result = await likesLib.removeArticleLike(body);
           case 'get_article_count':
-            if (req.method !== 'GET') throw new Error('Method not allowed for GET getArticleLikesCount');
-            result = await likesLib.getArticleLikesCount(dataPayload);
-            break;
+            result = await likesLib.getArticleLikesCount(body);
           case 'has_article_liked': // Check if user liked an article
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST hasUserLikedArticle');
-            result = await likesLib.hasUserLikedArticle(dataPayload);
-            break;
+            result = await likesLib.hasUserLikedArticle(body);
           default:
             throw new Error(`Unknown action "${action}" for type "like"`);
         }
@@ -137,25 +109,15 @@ export default async function handler(req) {
         // Route user-related requests
         switch (action) {
           case 'register':
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST registerUser');
-            result = await usersLib.registerUser(dataPayload);
-            break;
+            result = await usersLib.registerUser(body);
           case 'login':
-            if (req.method !== 'POST') throw new Error('Method not allowed for POST loginUser');
-            result = await usersLib.loginUser(dataPayload);
-            break;
+            result = await usersLib.loginUser(body);
           case 'getProfile':
-            if (req.method !== 'GET') throw new Error('Method not allowed for GET getUserProfile');
-            result = await usersLib.getUserProfile(dataPayload);
-            break;
+            result = await usersLib.getUserProfile(body);
           case 'update':
-            if (req.method !== 'PUT') throw new Error('Method not allowed for PUT updateUser');
-            result = await usersLib.updateUser(dataPayload);
-            break;
+            result = await usersLib.updateUser(body);
           case 'delete':
-            if (req.method !== 'DELETE') throw new Error('Method not allowed for DELETE deleteUser');
-            result = await usersLib.deleteUser(dataPayload);
-            break;
+            result = await usersLib.deleteUser(body);
           // Add more user actions here if needed
           default:
             throw new Error(`Unknown action "${action}" for type "user"`);
