@@ -11,12 +11,6 @@ import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; 
 export default async function handler(req, res) {
   setCORS(res);
 
-  if (req.method === 'OPTIONS') {
-    logger.info('收到 OPTIONS 请求，返回 204 No Content');
-    res.status(204).end();
-    return;
-  }
-
   // --- Parse Request Body ---
   let body;
   try {
@@ -112,6 +106,12 @@ export default async function handler(req, res) {
     // --- Success Response ---
     // Return a 200 OK response with the result data
     return  res.status(200).json({ success: true, data: result });
+
+    if (req.method === 'OPTIONS') {
+    logger.info('收到 OPTIONS 请求，返回 204 No Content');
+    res.status(204).end();
+    return;
+  }
 
   } catch (error) {
     // --- Error Handling ---
