@@ -106,6 +106,9 @@ export default async function handler(req, res) {
           case 'login':
             result = await usersLib.loginUser(body);
             break;
+          case 'logout':
+            result = await usersLib.logoutUser(body);
+            break;
           case 'getProfile':
             result = await usersLib.getUserProfile(body);
             break;
