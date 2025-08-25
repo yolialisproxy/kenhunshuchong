@@ -11,6 +11,12 @@ import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; 
 export default async function handler(req, res) {
   setCORS(res);
 
+  if (req.method === 'OPTIONS') {
+    logger.info('收到 OPTIONS 请求，返回 204 No Content');
+    res.status(204).end();
+    return;
+  }
+
   // --- Parse Request Body ---
   let body;
   try {
@@ -42,12 +48,16 @@ export default async function handler(req, res) {
         switch (action) {
           case 'get':
             result = await commentsLib.getComments(body);
+            break;
           case 'add':
             result = await commentsLib.addComment(body);
+            break;
           case 'update':
             result = await commentsLib.updateComment(body);
+            break;
           case 'delete':
             result = await commentsLib.deleteComment(body);
+            break;
           default:
             throw new Error(`Unknown action "${action}" for type "comment"`);
         }
@@ -58,22 +68,31 @@ export default async function handler(req, res) {
         switch (action) {
           case 'add_comment_like':
             result = await likesLib.addCommentLike(body);
+            break;
           case 'remove_comment_like':
             result = await likesLib.removeCommentLike(body);
+            break;
           case 'get_direct_count':
             result = await likesLib.getCommentDirectLikesCount(body);
+            break;
           case 'get_total_count':
             result = await likesLib.getCommentTotalLikesCount(body);
+            break;
           case 'has_liked': // Check if user liked a comment
             result = await likesLib.hasUserLikedComment(body);
+            break;
           case 'add_article_like':
             result = await likesLib.addArticleLike(body);
+            break;
           case 'remove_article_like':
             result = await likesLib.removeArticleLike(body);
+            break;
           case 'get_article_count':
             result = await likesLib.getArticleLikesCount(body);
+            break;
           case 'has_article_liked': // Check if user liked an article
             result = await likesLib.hasUserLikedArticle(body);
+            break;
           default:
             throw new Error(`Unknown action "${action}" for type "like"`);
         }
@@ -84,14 +103,19 @@ export default async function handler(req, res) {
         switch (action) {
           case 'register':
             result = await usersLib.registerUser(body);
+            break;
           case 'login':
             result = await usersLib.loginUser(body);
+            break;
           case 'getProfile':
             result = await usersLib.getUserProfile(body);
+            break;
           case 'update':
             result = await usersLib.updateUser(body);
+            break;
           case 'delete':
             result = await usersLib.deleteUser(body);
+            break;
           // Add more user actions here if needed
           default:
             throw new Error(`Unknown action "${action}" for type "user"`);
@@ -106,12 +130,6 @@ export default async function handler(req, res) {
     // --- Success Response ---
     // Return a 200 OK response with the result data
     return  res.status(200).json({ success: true, data: result });
-
-    if (req.method === 'OPTIONS') {
-    logger.info('收到 OPTIONS 请求，返回 204 No Content');
-    res.status(204).end();
-    return;
-  }
 
   } catch (error) {
     // --- Error Handling ---
