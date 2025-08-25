@@ -62,7 +62,7 @@ export default async function handler(req, res) {
           default:
             throw new Error(`Unknown action "${action}" for type "comment"`);
             break;
-        }
+        };
       case 'like':
         // Route likes-related requests
         switch (action) {
@@ -96,7 +96,7 @@ export default async function handler(req, res) {
           default:
             throw new Error(`Unknown action "${action}" for type "like"`);
             break;
-        }
+        };
       case 'user':
         // Route user-related requests
         switch (action) {
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
           default:
             throw new Error(`Unknown action "${action}" for type "user"`);
             break;
-        }
+        };
       default:
         // Handle unknown request types
         throw new Error(`Unknown request type: "${type}"`);
