@@ -11,11 +11,10 @@ import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; 
 export default async function handler(req, res) {
   setCORS(res);
 
-  // --- Handle OPTIONS (Preflight) Requests ---
   if (req.method === 'OPTIONS') {
-    // For preflight requests, return 204 No Content with CORS headers
     logger.info('收到 OPTIONS 请求，返回 204 No Content');
-    return new Response(null, { status: 204, headers: corsHeaders });
+    res.status(204).end();
+    return;
   }
 
   // --- Parse Request Body ---
@@ -25,10 +24,7 @@ export default async function handler(req, res) {
   } catch (error) {
     logger.error('解析请求体失败', error);
     // Return 400 Bad Request if body parsing fails
-    return new Response(
-      JSON.stringify({ success: false, message: 'Invalid request body' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return  res.status(400).json({ success: false, message: 'Invalid request body' });
   }
 
   // --- Extract Core Request Parameters ---
@@ -38,10 +34,7 @@ export default async function handler(req, res) {
   if (!type || !action) {
     logger.warn('缺少必要的请求参数 (type, action)', { type, action });
     // Return 400 Bad Request if type or action is missing
-    return new Response(
-      JSON.stringify({ success: false, message: 'Missing required parameters: type and action' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return  res.status(400).json({ success: false, message: 'Missing required parameters: type and action' });
   }
 
   // --- Route Request to Appropriate Lib Function ---
@@ -118,10 +111,7 @@ export default async function handler(req, res) {
 
     // --- Success Response ---
     // Return a 200 OK response with the result data
-    return new Response(
-      JSON.stringify({ success: true, data: result }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return  res.status(200).json({ success: true, data: result });
 
   } catch (error) {
     // --- Error Handling ---
@@ -134,9 +124,6 @@ export default async function handler(req, res) {
     const errorMessage = error.message || 'An unexpected server error occurred.';
 
     // Return an error response
-    return new Response(
-      JSON.stringify({ success: false, message: errorMessage }),
-      { status: statusCode, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return  res.status(statusCode).json({ success: false, message: errorMessage });
   }
 }
