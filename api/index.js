@@ -9,7 +9,7 @@ import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; 
 // Vercel Serverless Functions typically receive only `req` and should return a `Response`.
 // `res` object is not directly available or used in the same way as in Express.
 export default async function handler(req, res) {
-  res.setCORS(res);
+  setCORS(res);
 
   // --- Handle OPTIONS (Preflight) Requests ---
   if (req.method === 'OPTIONS') {
