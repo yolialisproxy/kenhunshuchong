@@ -57,7 +57,7 @@ export default async function handler(req, res) {
             result = await addComment(params);
             break;
           case 'get':
-            result = await getComments(params);
+            result = await getComments(params.queryParams);
             break;
           case 'update':
             result = await updateComment(params);
