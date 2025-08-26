@@ -54,10 +54,10 @@ export default async function handler(req, res) {
             result = await commentsLib.addComment(body);
             break;
           case 'update':
-            result = await commentsLib.updateComment(body);
+            result = await commentsLib.updateComment(body); // Now implemented
             break;
           case 'delete':
-            result = await commentsLib.deleteComment(body);
+            result = await commentsLib.deleteComment(body); // Now implemented
             break;
           default:
             throw new Error(`Unknown action "${action}" for type "comment"`);
