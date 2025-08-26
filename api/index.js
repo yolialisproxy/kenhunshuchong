@@ -2,7 +2,7 @@
 import { logger, parseBody, setCORS, ValidationError } from '../lib/utils.js';
 import {
   addComment, getComments, updateComment, deleteComment,
-  getCommentById, getCommentTree, computeCommentTreeTotalLikes, updateCommentAncestorsTotalLikes
+  getCommentTree, computeCommentTreeTotalLikes, updateCommentAncestorsTotalLikes
 } from '../lib/comments.js';
 import {
   addArticleLike, removeArticleLike, getArticleLikesCount, hasUserLikedArticle,
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { type, action, ...params, ...queryParams } = requestData;
+  const { type, action, ...params } = requestData;
 
   // 基础验证：确保 type 和 action 参数存在
   if (!type || !action) {
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
             result = await addComment(params);
             break;
           case 'get':
-            result = await getComments(queryParams);
+            result = await getComments(params);
             break;
           case 'update':
             result = await updateComment(params);
