@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { type, action, ...params } = requestData;
+  const { type, action, ...params, ...queryParams } = requestData;
 
   // 基础验证：确保 type 和 action 参数存在
   if (!type || !action) {
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
             result = await addComment(params);
             break;
           case 'get':
-            result = await getComments(params.queryParams);
+            result = await getComments(queryParams);
             break;
           case 'update':
             result = await updateComment(params);
