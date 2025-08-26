@@ -1,136 +1,152 @@
-// api/index.js (修正版本 - 中心调度器，适配 Vercel Serverless Functions)
-// 假设这些 lib 文件导出了具体的操作函数，而非一个总的 handler
-import * as commentsLib from '../lib/comments.js';
-import * as likesLib from '../lib/likes.js';
-import * as usersLib from '../lib/users.js';
-import { setCORS , parseBody, logger, ValidationError } from '../lib/utils.js'; // Import setCORS from utils
+// api/index.js - Vercel Serverless Function Entry Point
+import { logger, parseBody, setCORS, ValidationError } from '../lib/utils.js';
+import {
+  addComment, getComments, updateComment, deleteComment,
+  getCommentById, getCommentTree, computeCommentTreeTotalLikes, updateCommentAncestorsTotalLikes
+} from '../lib/comments.js';
+import {
+  addArticleLike, removeArticleLike, getArticleLikesCount, hasUserLikedArticle,
+  addCommentLike, removeCommentLike, getCommentDirectLikesCount, getCommentTotalLikesCount, hasUserLikedComment
+} from '../lib/likes.js';
+import {
+  registerUser, loginUser, logoutUser, getUserProfile, updateUser, deleteUser
+} from '../lib/users.js';
 
-// --- Handler Function Signature ---
-// Vercel Serverless Functions typically receive only `req` and should return a `Response`.
-// `res` object is not directly available or used in the same way as in Express.
+logger.info('🚀 Vercel API /api/index.js 加载成功');
+
 export default async function handler(req, res) {
-  setCORS(res);
+  setCORS(res); // 设置 CORS 头部，允许跨域请求
 
+  // 处理 OPTIONS 方法，用于 CORS 预检请求
   if (req.method === 'OPTIONS') {
-    logger.info('收到 OPTIONS 请求，返回 204 No Content');
-    res.status(204).end();
+    res.writeHead(200);
+    res.end();
     return;
   }
 
-  // --- Parse Request Body ---
-  let body;
+  let requestData;
   try {
-    body = await parseBody(req);
-    console.log("Parsed Body:", body);
+    // 使用 parseBody 函数统一解析所有请求的参数
+    // 对于 GET 请求，它会解析 URL 查询参数
+    // 对于 POST/PUT/DELETE 请求，它会解析请求体
+    requestData = await parseBody(req);
+    logger.debug(`[API Handler] Request received: Method=${req.method}, Path=${req.url}, ParsedData=`, requestData);
   } catch (error) {
-    logger.error('解析请求体失败', error);
-    // Return 400 Bad Request if body parsing fails
-    return  res.status(400).json({ success: false, message: 'Invalid request body' });
+    logger.error('[API Handler] Error parsing request body/params:', error);
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, message: 'Invalid request format or body.' }));
+    return;
   }
 
-  // --- Extract Core Request Parameters ---
-  const { type, action } = body;
+  const { type, action, ...params } = requestData;
 
-  // --- Validate Essential Parameters ---
+  // 基础验证：确保 type 和 action 参数存在
   if (!type || !action) {
-    logger.warn('缺少必要的请求参数 (type, action)', { type, action });
-    // Return 400 Bad Request if type or action is missing
-    return  res.status(400).json({ success: false, message: 'Missing required parameters: type and action' });
+    logger.warn(`[API Handler] Missing required parameters: type or action. Received data:`, requestData);
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: false, message: 'Missing required parameters: type and action' }));
+    return;
   }
 
-  // --- Route Request to Appropriate Lib Function ---
   try {
-    let result; // Variable to hold the result of the business logic function
-
-    // --- Main Routing Logic based on 'type' ---
+    let result;
     switch (type) {
       case 'comment':
-        // Route comments-related requests
         switch (action) {
-          case 'get':
-            result = await commentsLib.getComments(body);
-            break;
           case 'add':
-            result = await commentsLib.addComment(body);
+            result = await addComment(params);
+            break;
+          case 'get':
+            result = await getComments(params);
             break;
           case 'update':
-            result = await commentsLib.updateComment(body); // Now implemented
+            result = await updateComment(params);
             break;
           case 'delete':
-            result = await commentsLib.deleteComment(body); // Now implemented
+            result = await deleteComment(params);
+            break;
+          case 'getById':
+            result = await getCommentById(params);
+            break;
+          case 'getTree':
+            result = await getCommentTree(params);
+            break;
+          case 'computeTotalLikes':
+            result = await computeCommentTreeTotalLikes(params);
+            break;
+          case 'updateAncestorsLikes':
+            result = await updateCommentAncestorsTotalLikes(params);
             break;
           default:
-            throw new Error(`Unknown action "${action}" for type "comment"`);
-        };
+            throw new ValidationError(`Unsupported comment action: ${action}`);
+        }
         break;
+
       case 'like':
-        // Route likes-related requests
         switch (action) {
-          case 'add_comment_like':
-            result = await likesLib.addCommentLike(body);
+          case 'addArticleLike':
+            result = await addArticleLike(params);
             break;
-          case 'remove_comment_like':
-            result = await likesLib.removeCommentLike(body);
+          case 'removeArticleLike':
+            result = await removeArticleLike(params);
             break;
-          case 'get_direct_count':
-            result = await likesLib.getCommentDirectLikesCount(body);
+          case 'getArticleLikesCount':
+            result = await getArticleLikesCount(params);
             break;
-          case 'get_total_count':
-            result = await likesLib.getCommentTotalLikesCount(body);
+          case 'hasUserLikedArticle':
+            result = await hasUserLikedArticle(params);
             break;
-          case 'has_liked': // Check if user liked a comment
-            result = await likesLib.hasUserLikedComment(body);
+          case 'addCommentLike':
+            result = await addCommentLike(params);
             break;
-          case 'add_article_like':
-            result = await likesLib.addArticleLike(body);
+          case 'removeCommentLike':
+            result = await removeCommentLike(params);
             break;
-          case 'remove_article_like':
-            result = await likesLib.removeArticleLike(body);
+          case 'getCommentDirectLikesCount':
+            result = await getCommentDirectLikesCount(params);
             break;
-          case 'get_article_count':
-            result = await likesLib.getArticleLikesCount(body);
+          case 'getCommentTotalLikesCount':
+            result = await getCommentTotalLikesCount(params);
             break;
-          case 'has_article_liked': // Check if user liked an article
-            result = await likesLib.hasUserLikedArticle(body);
+          case 'hasUserLikedComment':
+            result = await hasUserLikedComment(params);
             break;
           default:
-            throw new Error(`Unknown action "${action}" for type "like"`);
-        };
+            throw new ValidationError(`Unsupported like action: ${action}`);
+        }
         break;
+
       case 'user':
-        // Route user-related requests
         switch (action) {
           case 'register':
-            result = await usersLib.registerUser(body);
+            result = await registerUser(params);
             break;
           case 'login':
-            result = await usersLib.loginUser(body);
+            result = await loginUser(params);
             break;
           case 'logout':
-            result = await usersLib.logoutUser(body);
+            result = await logoutUser(params);
             break;
-          case 'getProfile':
-            result = await usersLib.getUserProfile(body);
+          case 'profile':
+            result = await getUserProfile(params);
             break;
           case 'update':
-            result = await usersLib.updateUser(body);
+            result = await updateUser(params);
             break;
           case 'delete':
-            result = await usersLib.deleteUser(body);
+            result = await deleteUser(params);
             break;
-          // Add more user actions here if needed
           default:
-            throw new Error(`Unknown action "${action}" for type "user"`);
-        };
+            throw new ValidationError(`Unsupported user action: ${action}`);
+        }
         break;
+
       default:
-        // Handle unknown request types
-        throw new Error(`Unknown request type: "${type}"`);
+        throw new ValidationError(`Unsupported API type: ${type}`);
     }
 
-    // --- Success Response ---
-    // Return a 200 OK response with the result data
-    return  res.status(200).json({ success: true, data: result });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data: result }));
 
   } catch (error) {
     // --- Error Handling ---
