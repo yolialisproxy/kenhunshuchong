@@ -65,8 +65,8 @@ export default async function handler(req, res) {
           case 'delete':
             result = await deleteComment(params);
             break;
-          case 'getById':
-            result = await getCommentById(params);
+          case 'get':
+            result = await getComments(params);
             break;
           case 'getTree':
             result = await getCommentTree(params);
