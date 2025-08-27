@@ -38,7 +38,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { type, action, ...params } = requestData;
+  if (req.method === 'GET') {
+    const { type, action, ...params } = requestData.data;
+  } else {
+    const { type, action, ...params } = requestData;
+  }
 
   // 基础验证：确保 type 和 action 参数存在
   if (!type || !action) {
