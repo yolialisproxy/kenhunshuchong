@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       processedData = requestData.data;
     } else { // GET, HEAD
       // 对于 GET/HEAD，数据直接作为查询参数，parseBody 会直接返回这些参数
-      processedData = requestData;
+      processedData = requestData.ParsedData;
     }
   } catch (error) {
     logger.error('[API Handler] Error parsing request body/params:', error);
