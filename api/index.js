@@ -2,7 +2,7 @@
 import { logger, parseBody, setCORS, ValidationError } from '../lib/utils.js';
 import {
   addComment, getComments, updateComment, deleteComment,
-  getCommentTree, computeCommentTreeTotalLikes, updateCommentAncestorsTotalLikes
+  computeCommentTreeTotalLikes, updateCommentAncestorsTotalLikes
 } from '../lib/comments.js';
 import {
   addArticleLike, removeArticleLike, getArticleLikesCount, hasUserLikedArticle,
@@ -64,9 +64,6 @@ export default async function handler(req, res) {
             break;
           case 'delete':
             result = await deleteComment(params);
-            break;
-          case 'getTree':
-            result = await getCommentTree(params);
             break;
           case 'computeTotalLikes':
             result = await computeCommentTreeTotalLikes(params);
