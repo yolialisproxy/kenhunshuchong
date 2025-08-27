@@ -36,10 +36,10 @@ export default async function handler(req, res) {
     // FIX: 根据请求方法和前端 callApi 的数据封装方式，正确提取 processedData
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
       // 对于 POST/PUT/DELETE，前端 callApi 会将数据封装在 { data: { ... } } 中
-      processedData = requestData.data;
+      processedData = requestData.ParsedData;
     } else { // GET, HEAD
       // 对于 GET/HEAD，数据直接作为查询参数，parseBody 会直接返回这些参数
-      processedData = requestData.ParsedData;
+      processedData = requestData;
     }
   } catch (error) {
     logger.error('[API Handler] Error parsing request body/params:', error);
