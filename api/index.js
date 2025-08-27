@@ -24,13 +24,23 @@ export default async function handler(req, res) {
     return;
   }
 
-  let requestData;
+  let requestData = {}; // parseBody 的原始返回结果
+  let processedData = {}; // 经过处理后，包含 type, action, data 的最终对象
   try {
     // 使用 parseBody 函数统一解析所有请求的参数
     // 对于 GET 请求，它会解析 URL 查询参数
     // 对于 POST/PUT/DELETE 请求，它会解析请求体
     requestData = await parseBody(req);
     logger.debug(`[API Handler] Request received: Method=${req.method}, Path=${req.url}, ParsedData=`, requestData);
+
+    // FIX: 根据请求方法和前端 callApi 的数据封装方式，正确提取 processedData
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') {
+      // 对于 POST/PUT/DELETE，前端 callApi 会将数据封装在 { data: { ... } } 中
+      processedData = requestData.data;
+    } else { // GET, HEAD
+      // 对于 GET/HEAD，数据直接作为查询参数，parseBody 会直接返回这些参数
+      processedData = requestData;
+    }
   } catch (error) {
     logger.error('[API Handler] Error parsing request body/params:', error);
     res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -38,11 +48,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (req.method === 'GET') {
-    const { type, action, ...params } = requestData.data;
-  } else {
-    const { type, action, ...params } = requestData;
-  }
+  const { type, action, ...params } = processedData;
 
   // 基础验证：确保 type 和 action 参数存在
   if (!type || !action) {
