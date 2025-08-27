@@ -24,8 +24,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  let requestData = {}; // parseBody 的原始返回结果
-  let processedData = {}; // 经过处理后，包含 type, action, data 的最终对象
+  let requestData; // parseBody 的原始返回结果
+  let processedData; // 经过处理后，包含 type, action, data 的最终对象
   try {
     // 使用 parseBody 函数统一解析所有请求的参数
     // 对于 GET 请求，它会解析 URL 查询参数
