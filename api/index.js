@@ -14,8 +14,9 @@ import {
 
 logger.info('🚀 Vercel API /api/index.js 加载成功');
 
-export default async function handler(req, res) {
-  res = setCORS(res); // 设置 CORS 头部，允许跨域请求
+export default async function handler(req, resp) {
+  let res;
+  res = setCORS(resp); // 设置 CORS 头部，允许跨域请求
 
   // 处理 OPTIONS 方法，用于 CORS 预检请求
   if (req.method === 'OPTIONS') {
